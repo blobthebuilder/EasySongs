@@ -6,8 +6,17 @@ import (
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json") // tell the client it’s JSON
     w.WriteHeader(http.StatusOK)
-    w.Write([]byte("ok"))
+
+    resp := map[string]string{"status": "ok"} // your JSON object
+    jsonData, err := json.Marshal(resp)
+    if err != nil {
+        http.Error(w, `{"status":"error"}`, http.StatusInternalServerError)
+        return
+    }
+
+    w.Write(jsonData)
 }
 
 func getPlaylistsHandler(w http.ResponseWriter, r *http.Request) {
