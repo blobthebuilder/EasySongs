@@ -6,17 +6,12 @@ import (
 )
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "application/json") // tell the client it’s JSON
+    w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
 
-    resp := map[string]string{"status": "ok"} // your JSON object
-    jsonData, err := json.Marshal(resp)
-    if err != nil {
-        http.Error(w, `{"status":"error"}`, http.StatusInternalServerError)
-        return
-    }
-
-    w.Write(jsonData)
+    json.NewEncoder(w).Encode(map[string]string{
+        "status": "ok",
+    })
 }
 
 func getPlaylistsHandler(w http.ResponseWriter, r *http.Request) {
