@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/blobthebuilder/easysongs/internal/auth"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 )
@@ -27,6 +28,11 @@ func NewRouter() http.Handler {
         r.Get("/playlists", getPlaylistsHandler) // GET /api/playlists
         r.Post("/copy", copyHandler)             // POST /api/copy
         r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
+    })
+
+    r.Route("/auth", func(r chi.Router) {
+        r.Get("/login", auth.SpotifyLogin)
+        r.Get("/callback", auth.SpotifyCallback)
     })
 
     return r

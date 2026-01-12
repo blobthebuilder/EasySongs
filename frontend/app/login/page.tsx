@@ -1,7 +1,10 @@
+"use client";
+
 export default function LoginPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Login</h1>
-    </div>
-  );
+  const loginWithSpotify = () => {
+    // Redirect browser to Go backend
+    window.location.href = "http://127.0.0.1:8080/auth/login";
+  };
+
+  return <button onClick={loginWithSpotify}>Login with Spotify</button>;
 }
