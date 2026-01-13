@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/blobthebuilder/easysongs/internal/db"
 )
 
 type SpotifyTokenResponse struct {
@@ -60,8 +62,39 @@ func SpotifyCallback(w http.ResponseWriter, r *http.Request) {
 	log.Println("Access Token:", tokenResp.AccessToken)
 	log.Println("Refresh Token:", tokenResp.RefreshToken)
 
-	// TODO store token in database
+	// get user id first
+	userReq, _ := http.NewRequest("GET", "https://api.spotify.com/v1/me", nil)
+	userReq.Header.Set("Authorization", "Bearer "+ tokenResp.AccessToken)
 
+	userResp, err := client.Do(userReq)
+	if err != nil || userResp.StatusCode != 200 {
+		http.Error(w, "Failed to get Spotify user profile", http.StatusInternalServerError)
+		return
+	}
+	defer userResp.Body.Close()
+
+	var spotifyUser struct {
+		ID string `json:"id"`
+	}
+	err = json.NewDecoder(userResp.Body).Decode(&spotifyUser)
+	if err != nil {
+		http.Error(w, "Failed to parse Spotify user profile", http.StatusInternalServerError)
+		return
+	}
+	log.Println("Spotify User ID:", spotifyUser.ID)
+
+	// TODO store token in database
+	err = db.InsertSpotifyUser(
+        spotifyUser.ID,
+        tokenResp.AccessToken,
+        tokenResp.RefreshToken,
+        tokenResp.ExpiresIn,
+    )
+    if err != nil {
+		log.Printf("Failed to save user: %v", err)
+        http.Error(w, "Failed to save user", http.StatusInternalServerError)
+        return
+    }
 
 	http.Redirect(
 		w,
