@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"github.com/blobthebuilder/easysongs/internal/db"
+	"github.com/blobthebuilder/easysongs/internal/session"
+	"github.com/gorilla/sessions"
 )
 
 type SpotifyTokenResponse struct {
@@ -76,6 +78,7 @@ func SpotifyCallback(w http.ResponseWriter, r *http.Request) {
 	var spotifyUser struct {
 		ID string `json:"id"`
 	}
+
 	err = json.NewDecoder(userResp.Body).Decode(&spotifyUser)
 	if err != nil {
 		http.Error(w, "Failed to parse Spotify user profile", http.StatusInternalServerError)
@@ -83,7 +86,7 @@ func SpotifyCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println("Spotify User ID:", spotifyUser.ID)
 
-	// TODO store token in database
+	// store user info and token in database
 	err = db.InsertSpotifyUser(
         spotifyUser.ID,
         tokenResp.AccessToken,
@@ -95,6 +98,18 @@ func SpotifyCallback(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Failed to save user", http.StatusInternalServerError)
         return
     }
+
+	// create session
+	session, _ := session.Store.Get(r, "session")
+    session.Values["user_id"] = spotifyUser.ID
+    session.Options = &sessions.Options{
+        Path:     "/",
+        MaxAge:   86400 * 7, // 7 days
+        HttpOnly: true,
+        Secure:  false,  // set to true for https
+        SameSite: http.SameSiteLaxMode,
+    }
+    session.Save(r, w)
 
 	http.Redirect(
 		w,

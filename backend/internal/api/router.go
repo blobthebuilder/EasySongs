@@ -14,7 +14,7 @@ func NewRouter() http.Handler {
 
     // Middleware example: CORS for your React frontend
     r.Use(cors.Handler(cors.Options{
-        AllowedOrigins:   []string{"http://localhost:5173"}, // React dev server
+        AllowedOrigins:   []string{"http://127.0.0.1:3000", "http://localhost:3000"}, // React dev server
         AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
         AllowedHeaders:   []string{"Authorization", "Content-Type"},
         AllowCredentials: true,
@@ -33,6 +33,7 @@ func NewRouter() http.Handler {
     r.Route("/auth", func(r chi.Router) {
         r.Get("/login", auth.SpotifyLogin)
         r.Get("/callback", auth.SpotifyCallback)
+        r.Get("/logout", auth.LogoutHandler)
     })
 
     return r

@@ -3,11 +3,14 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 
 	"github.com/blobthebuilder/easysongs/internal/api"
 	"github.com/blobthebuilder/easysongs/internal/db"
+	"github.com/blobthebuilder/easysongs/internal/session"
 )
 
 func main() {
@@ -19,6 +22,9 @@ func main() {
 
 	// connect to db
 	db.Init()
+
+	secret:= os.Getenv("SESSION_SECRET_KEY")
+	session.Store = sessions.NewCookieStore([]byte(secret))
 
 	// start router
     router := api.NewRouter()

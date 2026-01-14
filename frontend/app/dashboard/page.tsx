@@ -1,10 +1,13 @@
+"use client";
+
 export default function DashboardPage() {
+  const logout = () => {
+    window.location.href = "http://127.0.0.1:8080/auth/logout";
+  };
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold">Dashboard</h1>
-      <button className="bg-green-500 hover:bg-green-600 px-6 py-3 rounded-md font-semibold">
-        Login
-      </button>
+      <button onClick={logout}>Logout</button>
     </div>
   );
 }
