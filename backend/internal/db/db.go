@@ -2,15 +2,17 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/blobthebuilder/easysongs/internal/spotify"
 	_ "github.com/lib/pq"
 )
 
-var DB *sql.DB
+var db *sql.DB
 
 // creates a store to keep the database connection
 func Init(){
@@ -26,17 +28,17 @@ func Init(){
 	)
 
 	var err error
-    DB, err = sql.Open("postgres", dsn) 
+    db, err = sql.Open("postgres", dsn) 
     if err != nil {
         log.Fatal("Failed to open DB:", err)
     }
 
     // configure connection pool
-    DB.SetMaxOpenConns(25)
-    DB.SetMaxIdleConns(25)
-    DB.SetConnMaxLifetime(0) // unlimited, or time.Hour
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(25)
+    db.SetConnMaxLifetime(0) // unlimited, or time.Hour
 
-    if err := DB.Ping(); err != nil {
+    if err := db.Ping(); err != nil {
         log.Fatal("Failed to ping DB:", err)
     }
 
@@ -46,7 +48,7 @@ func Init(){
 // InsertSpotifyUser inserts or updates a Spotify user in the database
 func InsertSpotifyUser(spotifyUserID string, accessToken string, refreshToken string, expiresIn int) error {
 	expiresAt := time.Now().Add(time.Duration(expiresIn) * time.Second)
-	_, err := DB.Exec(`
+	_, err := db.Exec(`
         INSERT INTO spotify_users (spotify_user_id, access_token, refresh_token, expires_at)
         VALUES ($1, $2, $3, $4)
         ON CONFLICT (spotify_user_id) DO UPDATE
@@ -56,4 +58,40 @@ func InsertSpotifyUser(spotifyUserID string, accessToken string, refreshToken st
     `, spotifyUserID, accessToken, refreshToken, expiresAt)
 
 	return err
+}
+
+func GetAccessToken(userID string) (spotify.SpotifyToken, error) {
+	var tokens spotify.SpotifyToken
+	err := db.QueryRow(`
+		SELECT access_token, refresh_token, expires_at
+		FROM spotify_users
+		WHERE spotify_user_id = $1
+	`, userID).Scan(&tokens.AccessToken, &tokens.RefreshToken, &tokens.ExpiresAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return tokens, errors.New("user not found")
+		}
+		return tokens, err
+	}
+	return tokens, nil
+}
+
+func UpdateSpotifyTokens(userID, accessToken, refreshToken string, expiresAt time.Time) error {
+    // If refreshToken is empty, we don't want to overwrite it.
+    if refreshToken == "" {
+        _, err := db.Exec(`
+            UPDATE users
+            SET access_code = $1, expires_at = $2
+            WHERE id = $3
+        `, accessToken, expiresAt, userID)
+        return err
+    }
+
+    _, err := db.Exec(`
+        UPDATE users
+        SET access_code = $1, refresh_token = $2, expires_at = $3
+        WHERE id = $4
+    `, accessToken, refreshToken, expiresAt, userID)
+    return err
 }
