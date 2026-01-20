@@ -114,3 +114,71 @@ func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
 
 	return allPlaylists, nil
 }
+
+type SpotifyTrack struct {
+    ID     string `json:"id"`
+    Name   string `json:"name"`
+    Artist string `json:"artist"`
+}
+
+func GetTracks(accessToken, playlistID string) ([]SpotifyTrack, error) {
+    var tracks []SpotifyTrack
+    url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks?limit=100", playlistID)
+
+    for url != "" {
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil {
+            return nil, err
+        }
+
+        req.Header.Set("Authorization", "Bearer "+accessToken)
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            return nil, err
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+            return nil, fmt.Errorf("Spotify API error: %s", resp.Status)
+        }
+
+        var result struct {
+            Items []struct {
+                Track struct {
+                    ID     string `json:"id"`
+                    Name   string `json:"name"`
+                    Artists []struct {
+                        Name string `json:"name"`
+                    } `json:"artists"`
+                } `json:"track"`
+            } `json:"items"`
+            Next string `json:"next"`
+        }
+
+        if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+            return nil, err
+        }
+
+        for _, item := range result.Items {
+            if item.Track.ID == "" {
+                continue
+            }
+
+            artist := ""
+            if len(item.Track.Artists) > 0 {
+                artist = item.Track.Artists[0].Name
+            }
+
+            tracks = append(tracks, SpotifyTrack{
+                ID:     item.Track.ID,
+                Name:   item.Track.Name,
+                Artist: artist,
+            })
+        }
+
+        url = result.Next
+    }
+
+    return tracks, nil
+}

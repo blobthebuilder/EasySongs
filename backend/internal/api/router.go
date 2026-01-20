@@ -29,6 +29,7 @@ func NewRouter() http.Handler {
         r.Use(middleware.RequireAuth)
         
         r.Get("/playlists", getPlaylistsHandler) // GET /api/playlists
+        r.Get("/playlists/{playlistID}/tracks", getPlaylistTracksHandler) // GET 
         r.Post("/copy", copyHandler)             // POST /api/copy
         r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
     })
