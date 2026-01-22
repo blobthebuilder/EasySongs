@@ -30,10 +30,12 @@ func SpotifyLogin(w http.ResponseWriter, r *http.Request) {
 	uri := os.Getenv("SPOTIFY_REDIRECT_URI")
 	encodedURI := url.QueryEscape(uri)
 	
+	scopes := os.Getenv("SPOTIFY_SCOPES")
+
 	url := "https://accounts.spotify.com/authorize" +
 		"?response_type=code" +
 		"&client_id=" + os.Getenv("SPOTIFY_CLIENT_ID") +
-		"&scope=user-read-private%20user-read-email" +
+		"&scope=" + url.QueryEscape(scopes) + 
 		"&redirect_uri=" + encodedURI +
 		"&state=" + state
 	

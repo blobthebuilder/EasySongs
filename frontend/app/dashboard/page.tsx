@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const fetchTracks = async (playlistId: string) => {
     try {
       const data = await apiFetch(
-        `http://127.0.0.1:8080/api/playlists/${playlistId}/tracks`
+        `http://127.0.0.1:8080/api/playlists/${playlistId}/tracks`,
       );
       setTracksByPlaylist((prev) => ({
         ...prev,
@@ -44,6 +44,20 @@ export default function DashboardPage() {
       }));
     } catch (err) {
       console.error("Failed to load tracks", err);
+    }
+  };
+
+  const addPlaylistToLikedSongs = async (playlistId: string) => {
+    try {
+      await apiFetch(
+        `http://127.0.0.1:8080/api/playlists/${playlistId}/copy-to-liked`,
+        {
+          method: "POST",
+        },
+      );
+      alert("Playlist added to liked songs!");
+    } catch (err) {
+      console.error("Failed to add playlist", err);
     }
   };
 
@@ -66,6 +80,9 @@ export default function DashboardPage() {
             className="my-2">
             <button onClick={() => fetchTracks(p.id)}>
               {p.name} — {p.id}
+            </button>
+            <button onClick={() => addPlaylistToLikedSongs(p.id)}>
+              Add to Liked Songs
             </button>
 
             {/* Display tracks if fetched */}

@@ -5,19 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
-
-type SpotifyTokenResponse struct {
-	AccessToken string `json:"access_token"`
-	TokenType   string `json:"token_type"`
-	Scope       string `json:"scope"`
-	RefreshToken string `json:"refresh_token"`
-	ExpiresIn   int    `json:"expires_in"`
-}
 
 func RefreshSpotifyToken(refreshToken string) (SpotifyToken, error) {
 	clientID := os.Getenv("SPOTIFY_CLIENT_ID")
@@ -71,16 +66,6 @@ func RefreshSpotifyToken(refreshToken string) (SpotifyToken, error) {
 	return result, nil
 }
 
-type SpotifyPlaylist struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type SpotifyPlaylistPage struct {
-	Items []SpotifyPlaylist `json:"items"`
-	Next  string            `json:"next"`
-}
-
 func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
 	var allPlaylists []SpotifyPlaylist
 	url := "https://api.spotify.com/v1/me/playlists?limit=50"
@@ -115,13 +100,7 @@ func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
 	return allPlaylists, nil
 }
 
-type SpotifyTrack struct {
-    ID     string `json:"id"`
-    Name   string `json:"name"`
-    Artist string `json:"artist"`
-}
-
-func GetTracks(accessToken, playlistID string) ([]SpotifyTrack, error) {
+func GetTracks(accessToken string, playlistID string) ([]SpotifyTrack, error) {
     var tracks []SpotifyTrack
     url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks?limit=100", playlistID)
 
@@ -181,4 +160,43 @@ func GetTracks(accessToken, playlistID string) ([]SpotifyTrack, error) {
     }
 
     return tracks, nil
+}
+
+func CopyPlaylistToLiked(accessToken string, playlistID string) error {
+	tracks, err := GetTracks(accessToken, playlistID)
+	if err != nil {
+        return err
+    }
+
+	trackIds := extractTrackIDs(tracks)
+
+	batchSize := 50
+	chunks := batchTrackIDs(trackIds, batchSize)
+
+	for _, batch := range chunks {
+		url := "https://api.spotify.com/v1/me/tracks?ids=" + strings.Join(batch, ",")
+		
+		req, err := http.NewRequest("PUT", url, nil)
+		if err != nil { return err }
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == 429 {
+            retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+            time.Sleep(time.Duration(retryAfter+1) * time.Second)
+            continue
+        }
+
+        if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+            body, _ := io.ReadAll(resp.Body)
+            return fmt.Errorf("Spotify save tracks failed: %s", string(body))
+        }
+	}
+	
+	return nil
 }
