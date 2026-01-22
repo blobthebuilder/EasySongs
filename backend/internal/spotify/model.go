@@ -21,8 +21,23 @@ type SpotifyTokenResponse struct {
 type SpotifyTrack struct {
     ID     string `json:"id"`
     Name   string `json:"name"`
-    Artist string `json:"artist"`
+    Artists []Artist `json:"artists"`
 }
+
+type Artist struct {
+    Name string `json:"name"`
+}
+
+type SpotifyTrackWrapper struct {
+    AddedAt string       `json:"added_at"`
+    Track   SpotifyTrack `json:"track"`
+}
+
+type SpotifyTrackPage struct {
+	Items []SpotifyTrackWrapper `json:"items"`
+	Next  string            `json:"next"`
+}
+
 
 type SpotifyPlaylist struct {
 	ID   string `json:"id"`

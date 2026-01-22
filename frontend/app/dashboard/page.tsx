@@ -11,7 +11,7 @@ type Playlist = {
 type Track = {
   id: string;
   name: string;
-  artist: string;
+  artists: { name: string }[];
 };
 
 export default function DashboardPage() {
@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const [tracksByPlaylist, setTracksByPlaylist] = useState<
     Record<string, Track[]>
   >({});
+  const [likedSongs, setLikedSongs] = useState<Track[]>([]);
 
   const logout = () => {
     window.location.href = "http://127.0.0.1:8080/auth/logout";
@@ -47,6 +48,15 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchLikedSongs = async () => {
+    try {
+      const data = await apiFetch("http://127.0.0.1:8080/api/liked");
+      setLikedSongs(data);
+    } catch (err) {
+      console.error("Failed to load liked songs", err);
+    }
+  };
+
   const addPlaylistToLikedSongs = async (playlistId: string) => {
     try {
       await apiFetch(
@@ -56,6 +66,7 @@ export default function DashboardPage() {
         },
       );
       alert("Playlist added to liked songs!");
+      fetchLikedSongs(); // refresh liked songs
     } catch (err) {
       console.error("Failed to add playlist", err);
     }
@@ -63,6 +74,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchPlaylists();
+    fetchLikedSongs();
   }, []);
 
   return (
@@ -90,11 +102,21 @@ export default function DashboardPage() {
               <ul className="mt-2">
                 {tracksByPlaylist[p.id].map((t) => (
                   <li key={t.id}>
-                    {t.name} — {t.artist}
+                    {t.name} — {t.artists.map((a) => a.name).join(", ")}
                   </li>
                 ))}
               </ul>
             )}
+          </li>
+        ))}
+      </ul>
+
+      <h2 className="mt-8 text-xl font-semibold">Liked Songs</h2>
+      <button onClick={fetchLikedSongs}>Refresh Liked Songs</button>
+      <ul className="mt-2">
+        {likedSongs.map((t) => (
+          <li key={t.id}>
+            {t.name} — {t.artists.map((a) => a.name).join(", ")}
           </li>
         ))}
       </ul>

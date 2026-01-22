@@ -23,7 +23,7 @@ func getPlaylistsHandler(w http.ResponseWriter, r *http.Request) {
 
     playlists, err := spotify.GetAllPlaylists(token.AccessToken)
     if err != nil{
-        http.Error(w, "Failed to fetch playlists", http.StatusBadGateway)
+        http.Error(w, "Failed to fetch playlists", http.StatusInternalServerError)
         return
     }
 
@@ -35,7 +35,7 @@ func getPlaylistTracksHandler(w http.ResponseWriter, r *http.Request) {
     
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
 
-    tracks, err :=  spotify.GetTracks(token.AccessToken, playlistID)
+    tracks, err :=  spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
     if err != nil {
         http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
         return
@@ -66,5 +66,13 @@ func copyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getLikedSongsHandler(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusNotImplemented)
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+    
+    songs, err := spotify.GetSavedSongs(token.AccessToken)
+    if err != nil{
+        http.Error(w, "Failed to fetch liked songs", http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(songs)
 }

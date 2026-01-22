@@ -100,7 +100,7 @@ func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
 	return allPlaylists, nil
 }
 
-func GetTracks(accessToken string, playlistID string) ([]SpotifyTrack, error) {
+func GetTracksFromPlaylist(accessToken string, playlistID string) ([]SpotifyTrack, error) {
     var tracks []SpotifyTrack
     url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks?limit=100", playlistID)
 
@@ -116,43 +116,35 @@ func GetTracks(accessToken string, playlistID string) ([]SpotifyTrack, error) {
         if err != nil {
             return nil, err
         }
-        defer resp.Body.Close()
+
+		if resp.StatusCode == 429 {
+			retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+			resp.Body.Close()
+			time.Sleep(time.Duration(retryAfter+1) * time.Second)
+			continue
+		}
 
         if resp.StatusCode != http.StatusOK {
+            resp.Body.Close()
             return nil, fmt.Errorf("Spotify API error: %s", resp.Status)
         }
 
-        var result struct {
-            Items []struct {
-                Track struct {
-                    ID     string `json:"id"`
-                    Name   string `json:"name"`
-                    Artists []struct {
-                        Name string `json:"name"`
-                    } `json:"artists"`
-                } `json:"track"`
-            } `json:"items"`
-            Next string `json:"next"`
-        }
-
+        var result SpotifyTrackPage
         if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+            resp.Body.Close()
             return nil, err
         }
+        resp.Body.Close()
 
         for _, item := range result.Items {
             if item.Track.ID == "" {
                 continue
             }
 
-            artist := ""
-            if len(item.Track.Artists) > 0 {
-                artist = item.Track.Artists[0].Name
-            }
-
             tracks = append(tracks, SpotifyTrack{
-                ID:     item.Track.ID,
-                Name:   item.Track.Name,
-                Artist: artist,
+                ID:      item.Track.ID,
+                Name:    item.Track.Name,
+                Artists: item.Track.Artists,
             })
         }
 
@@ -163,7 +155,7 @@ func GetTracks(accessToken string, playlistID string) ([]SpotifyTrack, error) {
 }
 
 func CopyPlaylistToLiked(accessToken string, playlistID string) error {
-	tracks, err := GetTracks(accessToken, playlistID)
+	tracks, err := GetTracksFromPlaylist(accessToken, playlistID)
 	if err != nil {
         return err
     }
@@ -199,4 +191,51 @@ func CopyPlaylistToLiked(accessToken string, playlistID string) error {
 	}
 	
 	return nil
+}
+
+func GetSavedSongs(accessToken string) ([]SpotifyTrack, error) {
+    var allTracks []SpotifyTrack
+    url := "https://api.spotify.com/v1/me/tracks?limit=50"
+
+    for url != "" {
+        req, err := http.NewRequest("GET", url, nil)
+        if err != nil {
+            return nil, err
+        }
+
+        req.Header.Set("Authorization", "Bearer "+accessToken)
+
+        resp, err := http.DefaultClient.Do(req)
+        if err != nil {
+            return nil, err
+        }
+
+        if resp.StatusCode == 429 {
+            retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+            resp.Body.Close()
+            time.Sleep(time.Duration(retryAfter+1) * time.Second)
+            continue
+        }
+
+        if resp.StatusCode != http.StatusOK {
+            body, _ := io.ReadAll(resp.Body)
+            resp.Body.Close()
+            return nil, fmt.Errorf("Spotify API error: %s - %s", resp.Status, string(body))
+        }
+
+        var page SpotifyTrackPage
+        if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+            resp.Body.Close()
+            return nil, err
+        }
+        resp.Body.Close()
+
+        for _, item := range page.Items {
+            allTracks = append(allTracks, item.Track)
+        }
+
+        url = page.Next
+    }
+
+    return allTracks, nil
 }
