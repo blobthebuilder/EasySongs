@@ -1,5 +1,7 @@
 export async function apiFetch(url: string, options: RequestInit = {}) {
-  const res = await fetch(url, {
+  const BASE_URL = "http://127.0.0.1:8080";
+  const fullUrl = url.startsWith("http") ? url : `${BASE_URL}${url}`;
+  const res = await fetch(fullUrl, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",

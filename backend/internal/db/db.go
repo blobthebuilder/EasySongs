@@ -81,17 +81,17 @@ func UpdateSpotifyTokens(userID, accessToken, refreshToken string, expiresAt tim
     // If refreshToken is empty, we don't want to overwrite it.
     if refreshToken == "" {
         _, err := db.Exec(`
-            UPDATE users
-            SET access_code = $1, expires_at = $2
-            WHERE id = $3
+            UPDATE spotify_users
+            SET access_token = $1, expires_at = $2
+            WHERE spotify_user_id = $3
         `, accessToken, expiresAt, userID)
         return err
     }
 
     _, err := db.Exec(`
-        UPDATE users
-        SET access_code = $1, refresh_token = $2, expires_at = $3
-        WHERE id = $4
+        UPDATE spotify_users
+        SET access_token = $1, refresh_token = $2, expires_at = $3
+        WHERE spotify_user_id = $4
     `, accessToken, refreshToken, expiresAt, userID)
     return err
 }

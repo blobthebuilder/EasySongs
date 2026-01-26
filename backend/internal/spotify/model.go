@@ -22,6 +22,7 @@ type SpotifyTrack struct {
     ID     string `json:"id"`
     Name   string `json:"name"`
     Artists []Artist `json:"artists"`
+	URI string `json:"uri"`
 }
 
 type Artist struct {
@@ -42,9 +43,23 @@ type SpotifyTrackPage struct {
 type SpotifyPlaylist struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	SnapshotID string `json:"snapshot_id"`
 }
 
 type SpotifyPlaylistPage struct {
 	Items []SpotifyPlaylist `json:"items"`
 	Next  string            `json:"next"`
+}
+
+type TrackURIs struct {
+    URI string `json:"uri"`
+}
+
+type RemoveDuplicatesPlaylistRequest struct {
+    Tracks     []TrackURIs `json:"tracks"`
+    SnapshotID string   `json:"snapshotId"`
+}
+
+type RemoveTracksResponse struct {
+    SnapshotID string `json:"snapshot_id"`
 }

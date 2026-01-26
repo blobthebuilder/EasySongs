@@ -1,105 +1,56 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api/fetch";
-
-type Playlist = {
-  id: string;
-  name: string;
-};
-
-type Track = {
-  id: string;
-  name: string;
-  artists: { name: string }[];
-};
+import { useRouter } from "next/navigation";
+import { ApiPlaylist } from "@/types/api/playlists";
+import { ApiTrack } from "@/types/api/tracks";
+import { fetchPlaylists } from "@/lib/api/playlists";
+import { fetchPlaylistTracks } from "@/lib/api/tracks";
+import { addPlaylistToLiked } from "@/lib/api/liked";
 
 export default function DashboardPage() {
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const router = useRouter();
+
+  const [playlists, setPlaylists] = useState<ApiPlaylist[]>([]);
   const [tracksByPlaylist, setTracksByPlaylist] = useState<
-    Record<string, Track[]>
+    Record<string, ApiTrack[]>
   >({});
-  const [likedSongs, setLikedSongs] = useState<Track[]>([]);
-
-  const logout = () => {
-    window.location.href = "http://127.0.0.1:8080/auth/logout";
-  };
-
-  const fetchPlaylists = async () => {
-    try {
-      const data = await apiFetch("http://127.0.0.1:8080/api/playlists");
-      setPlaylists(data);
-    } catch (err) {
-      console.error("Failed to load playlists", err);
-    }
-  };
-
-  const fetchTracks = async (playlistId: string) => {
-    try {
-      const data = await apiFetch(
-        `http://127.0.0.1:8080/api/playlists/${playlistId}/tracks`,
-      );
-      setTracksByPlaylist((prev) => ({
-        ...prev,
-        [playlistId]: data,
-      }));
-    } catch (err) {
-      console.error("Failed to load tracks", err);
-    }
-  };
-
-  const fetchLikedSongs = async () => {
-    try {
-      const data = await apiFetch("http://127.0.0.1:8080/api/liked");
-      setLikedSongs(data);
-    } catch (err) {
-      console.error("Failed to load liked songs", err);
-    }
-  };
-
-  const addPlaylistToLikedSongs = async (playlistId: string) => {
-    try {
-      await apiFetch(
-        `http://127.0.0.1:8080/api/playlists/${playlistId}/copy-to-liked`,
-        {
-          method: "POST",
-        },
-      );
-      alert("Playlist added to liked songs!");
-      fetchLikedSongs(); // refresh liked songs
-    } catch (err) {
-      console.error("Failed to add playlist", err);
-    }
-  };
 
   useEffect(() => {
-    fetchPlaylists();
-    fetchLikedSongs();
+    fetchPlaylists().then(setPlaylists);
   }, []);
 
+  const fetchTracks = async (playlistId: string) => {
+    const data = await fetchPlaylistTracks(playlistId);
+    setTracksByPlaylist((prev) => ({
+      ...prev,
+      [playlistId]: data,
+    }));
+  };
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+    <div>
+      <h1>Dashboard</h1>
 
-      <button onClick={logout}>Logout</button>
-      <button onClick={fetchPlaylists}>Reload Playlists</button>
+      <button onClick={() => router.push("/liked")}>Go to Liked Songs</button>
 
-      <h2 className="mt-6 text-xl font-semibold">Playlists</h2>
+      <h2>Playlists</h2>
       <ul>
         {playlists.map((p) => (
-          <li
-            key={p.id}
-            className="my-2">
-            <button onClick={() => fetchTracks(p.id)}>
-              {p.name} — {p.id}
+          <li key={p.id}>
+            <button
+              onClick={() =>
+                router.push(`/playlist/${p.id}?snapshotId=${p.snapshot_id}`)
+              }>
+              {p.name}
             </button>
-            <button onClick={() => addPlaylistToLikedSongs(p.id)}>
+
+            <button onClick={() => addPlaylistToLiked(p.id)}>
               Add to Liked Songs
             </button>
 
-            {/* Display tracks if fetched */}
             {tracksByPlaylist[p.id] && (
-              <ul className="mt-2">
+              <ul>
                 {tracksByPlaylist[p.id].map((t) => (
                   <li key={t.id}>
                     {t.name} — {t.artists.map((a) => a.name).join(", ")}
@@ -107,16 +58,6 @@ export default function DashboardPage() {
                 ))}
               </ul>
             )}
-          </li>
-        ))}
-      </ul>
-
-      <h2 className="mt-8 text-xl font-semibold">Liked Songs</h2>
-      <button onClick={fetchLikedSongs}>Refresh Liked Songs</button>
-      <ul className="mt-2">
-        {likedSongs.map((t) => (
-          <li key={t.id}>
-            {t.name} — {t.artists.map((a) => a.name).join(", ")}
           </li>
         ))}
       </ul>

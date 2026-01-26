@@ -117,12 +117,12 @@ func GetTracksFromPlaylist(accessToken string, playlistID string) ([]SpotifyTrac
             return nil, err
         }
 
-		if resp.StatusCode == 429 {
-			retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
-			resp.Body.Close()
-			time.Sleep(time.Duration(retryAfter+1) * time.Second)
-			continue
-		}
+        if resp.StatusCode == 429 {
+            retryAfter, _ := strconv.Atoi(resp.Header.Get("Retry-After"))
+            resp.Body.Close()
+            time.Sleep(time.Duration(retryAfter+1) * time.Second)
+            continue
+        }
 
         if resp.StatusCode != http.StatusOK {
             resp.Body.Close()
@@ -140,12 +140,7 @@ func GetTracksFromPlaylist(accessToken string, playlistID string) ([]SpotifyTrac
             if item.Track.ID == "" {
                 continue
             }
-
-            tracks = append(tracks, SpotifyTrack{
-                ID:      item.Track.ID,
-                Name:    item.Track.Name,
-                Artists: item.Track.Artists,
-            })
+            tracks = append(tracks, item.Track)
         }
 
         url = result.Next
@@ -238,4 +233,43 @@ func GetSavedSongs(accessToken string) ([]SpotifyTrack, error) {
     }
 
     return allTracks, nil
+}
+
+func RemoveTracksFromPlaylist(accessToken string, playlistID string, trackURIs []TrackURIs, snapshotID string) (string, error) {
+	url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID)
+
+	reqBody := RemoveDuplicatesPlaylistRequest{
+		Tracks:  trackURIs,
+		SnapshotID: snapshotID,
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", err
+	}
+	
+	req, err := http.NewRequest("DELETE", url, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        return "", err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return "", fmt.Errorf("Spotify API error: %s", resp.Status)
+    }
+
+	var res RemoveTracksResponse
+    if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+        return "", err
+    }
+
+	return res.SnapshotID, nil
 }

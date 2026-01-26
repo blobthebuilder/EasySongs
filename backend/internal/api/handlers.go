@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/blobthebuilder/easysongs/internal/middleware"
@@ -75,4 +76,66 @@ func getLikedSongsHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     json.NewEncoder(w).Encode(songs)
+}
+
+func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
+    var req RemoveDuplicatesPlaylistRequest
+    err := json.NewDecoder(r.Body).Decode(&req)
+    if err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    playlistID := chi.URLParam(r, "playlistID")
+
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+
+    tracks, err :=  spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
+    if err != nil {
+        http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
+        return
+    }
+
+    seen := make(map[ProcessedTrack]int)
+    duplicateURIs := []string{}
+
+    for i, track := range tracks{
+        processedTrack := ProcessedTrack{
+            Name: normalizeTrackName(track.Name),
+            Artists: normalizeArtists(track.Artists),
+        }
+
+        if _, exists := seen[processedTrack]; exists {
+            duplicateURIs = append(duplicateURIs, track.URI)
+            log.Printf("Duplicate found: %s - %s", track.Name, track.URI)
+            continue
+        }
+
+        seen[processedTrack] = i
+    }
+
+    if len(duplicateURIs) == 0{
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]any{
+            "duplicates": false,
+        })
+        return
+    }
+
+    processedURIs := make([]spotify.TrackURIs, len(duplicateURIs))
+    for i, uri := range duplicateURIs {
+        processedURIs[i] = spotify.TrackURIs{URI: uri}
+    }
+
+    newSnapshotID, err := spotify.RemoveTracksFromPlaylist(token.AccessToken, playlistID, processedURIs, req.SnapshotID)
+    if err != nil {
+        http.Error(w, "Failed to remove duplicates", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]any{
+        "duplicates": true,
+        "snapshotId": newSnapshotID,
+    })
 }
