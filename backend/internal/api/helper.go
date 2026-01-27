@@ -9,11 +9,19 @@ import (
 
 type RemoveDuplicatesPlaylistRequest struct{
 	SnapshotID string `json:"snapshotId"`
+	PrioNonexplicit *bool `json:"prioExplicit,omitempty"`
+	AlbumTypePriority []string `json:"albumTypePriority"`
 }
 
 type ProcessedTrack struct {
 	Name          string
 	Artists string
+}
+
+type TrackMeta struct{
+	URI string
+	Explicit bool
+	AlbumType string
 }
 
 func normalizeTrackName(trackName string) string {
@@ -30,4 +38,20 @@ func normalizeArtists(artists []spotify.Artist) string{
     }
     sort.Strings(names)
     return strings.Join(names, ",")
+}
+
+func albumTypePriorityMap(p []string) map[string]int {
+    prio := make(map[string]int, len(p))
+    for i, t := range p {
+        prio[t] = i // lower index = higher priority
+    }
+    return prio
+}
+
+func shouldReplaceByAlbumType(
+    existing TrackMeta,
+    candidate TrackMeta,
+    albumPrio map[string]int,
+) bool {
+    return albumPrio[candidate.AlbumType] < albumPrio[existing.AlbumType]
 }

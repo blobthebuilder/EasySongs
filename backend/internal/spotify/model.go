@@ -23,6 +23,12 @@ type SpotifyTrack struct {
     Name   string `json:"name"`
     Artists []Artist `json:"artists"`
 	URI string `json:"uri"`
+	Album  Album `json:"album"`
+	Explicit bool `json:"explicit"`
+}
+
+type Album struct{
+	Type string `json:"album_type"`
 }
 
 type Artist struct {

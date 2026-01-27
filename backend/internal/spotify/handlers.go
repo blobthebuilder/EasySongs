@@ -67,7 +67,7 @@ func RefreshSpotifyToken(refreshToken string) (SpotifyToken, error) {
 }
 
 func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
-	var allPlaylists []SpotifyPlaylist
+	allPlaylists := []SpotifyPlaylist{} 
 	url := "https://api.spotify.com/v1/me/playlists?limit=50"
 
 	for url != "" {
@@ -96,12 +96,11 @@ func GetAllPlaylists(accessToken string) ([]SpotifyPlaylist, error) {
 		allPlaylists = append(allPlaylists, page.Items...)
 		url = page.Next // Spotify gives you the next page URL
 	}
-
 	return allPlaylists, nil
 }
 
 func GetTracksFromPlaylist(accessToken string, playlistID string) ([]SpotifyTrack, error) {
-    var tracks []SpotifyTrack
+    tracks := []SpotifyTrack{}
     url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks?limit=100", playlistID)
 
     for url != "" {

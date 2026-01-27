@@ -22,6 +22,14 @@ export default function PlaylistPage() {
 
   const [tracks, setTracks] = useState<ApiTrack[]>([]);
 
+  // need the ui to use this later
+  const [albumTypePriority, setAlbumTypePriority] = useState([
+    "album",
+    "single",
+    "compilation",
+  ]);
+  const [prioExplicit, setPrioExplicit] = useState(null);
+
   useEffect(() => {
     if (!playlistId) return;
     fetchPlaylistTracks(playlistId).then(setTracks);
@@ -37,7 +45,11 @@ export default function PlaylistPage() {
 
   const handleRemoveDuplicates = async () => {
     try {
-      const res = await removeDuplicatesPlaylists(playlistId, snapshotId);
+      const res = await removeDuplicatesPlaylists(playlistId, {
+        snapshotId,
+        albumTypePriority, // state variable from your UI
+        prioExplicit, // state variable from your UI
+      });
 
       if (res.duplicates) {
         alert("Duplicates removed!");
@@ -60,13 +72,17 @@ export default function PlaylistPage() {
       </button>
       <button onClick={handleRemoveDuplicates}>Remove duplicates</button>
 
-      <ul>
-        {tracks.map((t) => (
-          <li key={t.id}>
-            {t.name} — {t.artists.map((a) => a.name).join(", ")}
-          </li>
-        ))}
-      </ul>
+      {tracks.length === 0 ? (
+        <p>This playlist is empty.</p>
+      ) : (
+        <ul>
+          {tracks.map((t, i) => (
+            <li key={`${t.id}-${i}`}>
+              {t.name} — {t.artists.map((a) => a.name).join(", ")}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

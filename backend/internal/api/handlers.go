@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/blobthebuilder/easysongs/internal/middleware"
@@ -28,6 +27,7 @@ func getPlaylistsHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(playlists)
 }
 
@@ -81,11 +81,18 @@ func getLikedSongsHandler(w http.ResponseWriter, r *http.Request) {
 func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
     var req RemoveDuplicatesPlaylistRequest
     err := json.NewDecoder(r.Body).Decode(&req)
-    if err != nil {
+    if err != nil || len(req.AlbumTypePriority) != 3 {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
         return
     }
-    
+
+    prioNonexplicit := true
+    if req.PrioNonexplicit != nil{
+        prioNonexplicit = *req.PrioNonexplicit
+    }
+
+    albumPrio := albumTypePriorityMap(req.AlbumTypePriority)
+
     playlistID := chi.URLParam(r, "playlistID")
 
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
@@ -96,25 +103,56 @@ func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
         return
     }
 
-    seen := make(map[ProcessedTrack]int)
+    seen := make(map[ProcessedTrack]TrackMeta)
     duplicateURIs := []string{}
 
-    for i, track := range tracks{
+    for _, track := range tracks{
         processedTrack := ProcessedTrack{
             Name: normalizeTrackName(track.Name),
             Artists: normalizeArtists(track.Artists),
         }
 
-        if _, exists := seen[processedTrack]; exists {
-            duplicateURIs = append(duplicateURIs, track.URI)
-            log.Printf("Duplicate found: %s - %s", track.Name, track.URI)
+        candidate := TrackMeta{
+            URI: track.URI,
+            Explicit:  track.Explicit,
+            AlbumType: track.Album.Type,
+        }
+
+        if existing, exists := seen[processedTrack]; exists {
+            // Exact duplicate (same URI) 
+            // NEED to think about what happens because spotify will remove all occurences of that uri
+            if existing.URI == candidate.URI {
+                duplicateURIs = append(duplicateURIs, candidate.URI)
+                continue
+            }
+
+            if prioNonexplicit{ // do explicit check over album type prio
+                if candidate.Explicit && !existing.Explicit{
+                    // keep
+                    duplicateURIs = append(duplicateURIs, track.URI)
+                }else if !candidate.Explicit && existing.Explicit{
+                    // replace exisitng
+                    duplicateURIs = append(duplicateURIs, existing.URI)
+                    seen[processedTrack] = candidate
+                }
+                // if they are the same, continue to the next one
+            }
+
+            if shouldReplaceByAlbumType(existing, candidate, albumPrio) {
+                // replace existing
+                duplicateURIs = append(duplicateURIs, existing.URI)
+                seen[processedTrack] = candidate
+            } else {
+                // keep existing
+                duplicateURIs = append(duplicateURIs, track.URI)
+            }
             continue
         }
 
-        seen[processedTrack] = i
+        seen[processedTrack] = candidate
     }
 
-    if len(duplicateURIs) == 0{
+    if len(duplicateURIs) == 0{ // if no duplicates
         w.WriteHeader(http.StatusOK)
         json.NewEncoder(w).Encode(map[string]any{
             "duplicates": false,
@@ -122,6 +160,7 @@ func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
         return
     }
 
+    // convert uris into json objects
     processedURIs := make([]spotify.TrackURIs, len(duplicateURIs))
     for i, uri := range duplicateURIs {
         processedURIs[i] = spotify.TrackURIs{URI: uri}

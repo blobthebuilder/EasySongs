@@ -1,5 +1,6 @@
 import {
   ApiPlaylist,
+  RemoveDuplicatesRequest,
   RemoveDuplicatesPlaylistResponse,
 } from "@/types/api/playlists";
 import { apiFetch } from "./fetch";
@@ -10,10 +11,10 @@ export async function fetchPlaylists(): Promise<ApiPlaylist[]> {
 
 export async function removeDuplicatesPlaylists(
   playlistId: string,
-  snapshotId: string,
+  body: RemoveDuplicatesRequest,
 ): Promise<RemoveDuplicatesPlaylistResponse> {
   return apiFetch(`/api/playlists/${playlistId}/remove-duplicates`, {
     method: "POST",
-    body: JSON.stringify({ snapshotId }),
+    body: JSON.stringify(body),
   });
 }
