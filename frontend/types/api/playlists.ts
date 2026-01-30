@@ -5,7 +5,6 @@ export type ApiPlaylist = {
 };
 
 export interface RemoveDuplicatesRequest {
-  snapshotId: string;
   albumTypePriority?: string[]; // optional
   prioExplicit?: boolean | null; // optional
 }

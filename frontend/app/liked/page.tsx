@@ -1,6 +1,8 @@
 import { ApiTrack } from "@/types/api/tracks";
 import { fetchLikedSongs } from "@/lib/api/fetchLiked";
 
+export const dynamic = "force-dynamic";
+
 export default async function LikedPage() {
   const likedSongs: ApiTrack[] = await fetchLikedSongs();
 

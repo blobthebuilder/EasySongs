@@ -97,6 +97,13 @@ func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
 
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
 
+    metadata, err := spotify.GetPlaylistMetadata(token.AccessToken, playlistID, []string{"snapshot_id"})
+    if err != nil {
+        http.Error(w, "Failed to fetch playlist status", http.StatusInternalServerError)
+        return
+    }
+    currentSnapshotID := metadata.SnapshotID
+
     tracks, err :=  spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
     if err != nil {
         http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
@@ -166,7 +173,7 @@ func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
         processedURIs[i] = spotify.TrackURIs{URI: uri}
     }
 
-    newSnapshotID, err := spotify.RemoveTracksFromPlaylist(token.AccessToken, playlistID, processedURIs, req.SnapshotID)
+    newSnapshotID, err := spotify.RemoveTracksFromPlaylist(token.AccessToken, playlistID, processedURIs, currentSnapshotID)
     if err != nil {
         http.Error(w, "Failed to remove duplicates", http.StatusInternalServerError)
         return

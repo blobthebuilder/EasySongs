@@ -1,7 +1,8 @@
 import { ApiTrack } from "@/types/api/tracks";
-import { fetchPlaylistTracks } from "@/lib/api/tracks";
+import { fetchPlaylistTracks } from "@/lib/api/playlists";
 import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
 import BackButton from "@/components/BackButton";
+import RemoveDuplicatesButton from "@/components/RemoveDuplicatesButton";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +16,11 @@ export default async function PlaylistPage({
   searchParams,
 }: PageProps) {
   const resolvedParams = await params;
-  const resolvedSearchParams = await searchParams;
 
   const playlistId = resolvedParams.playlistId;
-  const snapshotId = resolvedSearchParams.snapshotId;
 
   if (!playlistId) {
     return <div>Missing playlist ID</div>;
-  }
-
-  if (!snapshotId) {
-    return <div>Missing snapshotId</div>;
   }
 
   let tracks: ApiTrack[] = [];
@@ -42,6 +37,7 @@ export default async function PlaylistPage({
 
       <BackButton />
       <AddToLikedButton playlistId={playlistId} />
+      <RemoveDuplicatesButton playlistId={playlistId} />
 
       {tracks.length === 0 ? (
         <p>This playlist is empty.</p>

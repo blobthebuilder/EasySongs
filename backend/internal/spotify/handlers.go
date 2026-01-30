@@ -272,3 +272,39 @@ func RemoveTracksFromPlaylist(accessToken string, playlistID string, trackURIs [
 
 	return res.SnapshotID, nil
 }
+
+func GetPlaylistMetadata(accessToken string, playlistID string, fields []string) (*MetadataResponse, error){
+	baseUrl := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s", playlistID)
+
+	if len(fields) > 0 {
+		baseUrl += "?fields=" + strings.Join(fields, ",")
+	}
+	
+	req, err := http.NewRequest("GET", baseUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// 3. Handle non-200 responses
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("spotify api error: status %d", resp.StatusCode)
+	}
+
+	// 4. Decode the JSON into your struct
+	var metadata MetadataResponse
+	if err := json.NewDecoder(resp.Body).Decode(&metadata); err != nil {
+		return nil, err
+	}
+
+	return &metadata, nil
+}

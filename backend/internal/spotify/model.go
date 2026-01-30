@@ -69,3 +69,15 @@ type RemoveDuplicatesPlaylistRequest struct {
 type RemoveTracksResponse struct {
     SnapshotID string `json:"snapshot_id"`
 }
+
+type MetadataRequest struct{
+	PlaylistID string `json:"playlist_id"`
+	Fields string `json:"fields"`
+}
+
+type MetadataResponse struct{
+	Collaborative bool   `json:"collaborative"`
+    SnapshotID    string `json:"snapshot_id"`
+    Name          string `json:"name"`
+    Description string `json:"description"`
+}

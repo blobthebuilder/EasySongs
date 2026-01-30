@@ -3,6 +3,8 @@ import { ApiPlaylist } from "@/types/api/playlists";
 import { fetchPlaylists } from "@/lib/api/playlists";
 import AddPlaylistButton from "@/components/AddPlaylistToLikedButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const playlists: ApiPlaylist[] = await fetchPlaylists();
 
@@ -18,7 +20,7 @@ export default async function DashboardPage() {
       <ul>
         {playlists.map((p) => (
           <li key={p.id}>
-            <Link href={`/playlist/${p.id}?snapshotId=${p.snapshot_id}`}>
+            <Link href={`/playlist/${p.id}`}>
               <button>{p.name}</button>
             </Link>
 

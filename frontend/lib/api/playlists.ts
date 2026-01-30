@@ -4,17 +4,14 @@ import {
   RemoveDuplicatesPlaylistResponse,
 } from "@/types/api/playlists";
 import { apiFetchServer } from "./fetchServer";
+import { ApiTrack } from "@/types/api/tracks";
 
 export async function fetchPlaylists(): Promise<ApiPlaylist[]> {
   return apiFetchServer("/api/playlists");
 }
 
-export async function removeDuplicatesPlaylists(
+export async function fetchPlaylistTracks(
   playlistId: string,
-  body: RemoveDuplicatesRequest,
-): Promise<RemoveDuplicatesPlaylistResponse> {
-  return apiFetchServer(`/api/playlists/${playlistId}/remove-duplicates`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+): Promise<ApiTrack[]> {
+  return apiFetchServer(`/api/playlists/${playlistId}/tracks`);
 }
