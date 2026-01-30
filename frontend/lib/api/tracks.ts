@@ -1,8 +1,8 @@
 import { ApiTrack } from "@/types/api/tracks";
-import { apiFetch } from "./fetch";
+import { apiFetchServer } from "./fetchServer";
 
 export async function fetchPlaylistTracks(
   playlistId: string,
 ): Promise<ApiTrack[]> {
-  return apiFetch(`/api/playlists/${playlistId}/tracks`);
+  return apiFetchServer(`/api/playlists/${playlistId}/tracks`);
 }
