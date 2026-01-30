@@ -1,7 +1,8 @@
-import { ApiTrack } from "@/types/api/tracks";
 import { fetchPlaylistTracks } from "@/lib/api/playlists";
-import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
+import PlaylistHeader from "@/components/PlaylistHeader";
+import TrackTable from "@/components/TrackTable";
 import BackButton from "@/components/BackButton";
+import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
 import RemoveDuplicatesButton from "@/components/RemoveDuplicatesButton";
 
 export const dynamic = "force-dynamic";
@@ -15,41 +16,36 @@ export default async function PlaylistPage({
   params,
   searchParams,
 }: PageProps) {
-  const resolvedParams = await params;
+  const { playlistId } = await params;
 
-  const playlistId = resolvedParams.playlistId;
-
-  if (!playlistId) {
-    return <div>Missing playlist ID</div>;
-  }
-
-  let tracks: ApiTrack[] = [];
-
-  try {
-    tracks = await fetchPlaylistTracks(playlistId);
-  } catch (err) {
-    return <div>Failed to load playlist</div>;
-  }
+  const tracks = await fetchPlaylistTracks(playlistId).catch(() => []);
 
   return (
-    <div>
-      <h1>Playlist</h1>
+    <div className="min-h-screen bg-[#121212]">
+      {/* Header */}
+      <PlaylistHeader
+        title="Playlist"
+        itemCount={tracks.length}
+        gradientFrom="from-[#404040]">
+        <BackButton />
+      </PlaylistHeader>
 
-      <BackButton />
-      <AddToLikedButton playlistId={playlistId} />
-      <RemoveDuplicatesButton playlistId={playlistId} />
+      {/* Second header */}
+      <div className="px-8 py-6 flex items-center gap-6">
+        <div className="scale-125">
+          <AddToLikedButton playlistId={playlistId} />
+        </div>
+        <RemoveDuplicatesButton playlistId={playlistId} />
+      </div>
 
-      {tracks.length === 0 ? (
-        <p>This playlist is empty.</p>
-      ) : (
-        <ul>
-          {tracks.map((t, i) => (
-            <li key={`${t.id}-${i}`}>
-              {t.name} — {t.artists.map((a) => a.name).join(", ")}
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Reusable Track List with Selection Logic */}
+      <div className="px-8 pb-10">
+        {tracks.length === 0 ? (
+          <p className="text-[#b3b3b3] p-4">This playlist is empty.</p>
+        ) : (
+          <TrackTable tracks={tracks} />
+        )}
+      </div>
     </div>
   );
 }

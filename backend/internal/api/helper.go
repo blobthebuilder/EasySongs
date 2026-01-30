@@ -9,7 +9,7 @@ import (
 
 type RemoveDuplicatesPlaylistRequest struct{
 	SnapshotID string `json:"snapshotId"`
-	PrioNonexplicit *bool `json:"prioExplicit,omitempty"`
+	PrioNonexplicit *bool `json:"prioNonexplicit,omitempty"`
 	AlbumTypePriority []string `json:"albumTypePriority"`
 }
 

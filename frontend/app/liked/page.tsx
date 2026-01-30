@@ -1,5 +1,8 @@
 import { ApiTrack } from "@/types/api/tracks";
 import { fetchLikedSongs } from "@/lib/api/fetchLiked";
+import PlaylistHeader from "@/components/PlaylistHeader";
+import BackButton from "@/components/BackButton";
+import TrackTable from "@/components/TrackTable";
 
 export const dynamic = "force-dynamic";
 
@@ -7,15 +10,18 @@ export default async function LikedPage() {
   const likedSongs: ApiTrack[] = await fetchLikedSongs();
 
   return (
-    <div>
-      <h1>Liked Songs</h1>
-      <ul>
-        {likedSongs.map((t) => (
-          <li key={t.id}>
-            {t.name} — {t.artists.map((a) => a.name).join(", ")}
-          </li>
-        ))}
-      </ul>
+    <div className="min-h-screen bg-[#121212]">
+      <PlaylistHeader
+        title="Liked Songs"
+        itemCount={likedSongs.length}
+        imageEmoji="🤍"
+        gradientFrom="from-[#5038a0]">
+        <BackButton />
+      </PlaylistHeader>
+
+      <div className="px-8 pb-10">
+        <TrackTable tracks={likedSongs} />
+      </div>
     </div>
   );
 }
