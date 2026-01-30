@@ -1,6 +1,6 @@
 "use client";
 
-import { addPlaylistToLiked } from "@/lib/api/liked";
+import { addPlaylistToLiked } from "@/lib/api/addPlaylistToLiked";
 
 export default function AddPlaylistButton({
   playlistId,

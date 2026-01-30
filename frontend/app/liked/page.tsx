@@ -1,15 +1,8 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { ApiTrack } from "@/types/api/tracks";
-import { fetchLikedSongs } from "@/lib/api/liked";
+import { fetchLikedSongs } from "@/lib/api/fetchLiked";
 
-export default function LikedPage() {
-  const [likedSongs, setLikedSongs] = useState<ApiTrack[]>([]);
-
-  useEffect(() => {
-    fetchLikedSongs().then(setLikedSongs);
-  }, []);
+export default async function LikedPage() {
+  const likedSongs: ApiTrack[] = await fetchLikedSongs();
 
   return (
     <div>
