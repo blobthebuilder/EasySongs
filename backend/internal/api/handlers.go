@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/blobthebuilder/easysongs/internal/middleware"
 	"github.com/blobthebuilder/easysongs/internal/spotify"
@@ -59,11 +60,6 @@ func copyToLikedHandler(w http.ResponseWriter, r *http.Request){
     }
 
     w.WriteHeader(http.StatusNoContent)
-}
-
-func copyHandler(w http.ResponseWriter, r *http.Request) {
-    // Later: parse JSON from frontend
-    w.WriteHeader(http.StatusNotImplemented)
 }
 
 func getLikedSongsHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,4 +180,48 @@ func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
         "duplicates": true,
         "snapshotId": newSnapshotID,
     })
+}
+
+func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
+    playlistID := chi.URLParam(r, "playlistID")
+    
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+
+    var (
+		tracks   []spotify.SpotifyTrack // Replace with your actual track type
+		metadata *spotify.MetadataResponse // Replace with your actual metadata type
+		trackErr error
+		metaErr  error
+		wg       sync.WaitGroup
+	)
+
+    wg.Add(2)
+
+    // Task 1: Fetch Tracks
+	go func() {
+		defer wg.Done()
+		tracks, trackErr = spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
+	}()
+
+	// Task 2: Fetch Metadata
+	go func() {
+		defer wg.Done()
+		metadata, metaErr = spotify.GetPlaylistMetadata(token.AccessToken, playlistID, []string{"name", "images"})
+	}()
+
+	wg.Wait()
+
+    if trackErr != nil || metaErr != nil {
+		http.Error(w, "Failed to fetch data from Spotify", http.StatusInternalServerError)
+		return
+	}
+
+    response := spotify.PlaylistDetailsResponse{
+        Name:   metadata.Name,
+        Images: metadata.Images,
+        Tracks: tracks,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }

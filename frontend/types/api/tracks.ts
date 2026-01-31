@@ -6,5 +6,10 @@ export type ApiTrack = {
   id: string;
   name: string;
   artists: ApiArtist[];
-  album: string;
+  album: Album;
+};
+
+export type Album = {
+  type: string;
+  name: string;
 };

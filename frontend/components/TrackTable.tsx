@@ -12,6 +12,10 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
 
   const allSelected = selectedIds.size === tracks.length && tracks.length > 0;
 
+  const [initialSelectedIds, setInitialSelectedIds] = useState<Set<string>>(
+    new Set(),
+  );
+
   const toggleSelectAll = () => {
     if (allSelected) {
       setSelectedIds(new Set());
@@ -20,26 +24,47 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
     }
   };
 
-  const updateRange = (start: number, end: number, adding: boolean) => {
-    const min = Math.min(start, end);
-    const max = Math.max(start, end);
-    const affected = tracks
-      .slice(min, max + 1)
-      .map((t, i) => `${t.id}-${min + i}`);
-
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      affected.forEach((id) => (adding ? next.add(id) : next.delete(id)));
-      return next;
-    });
-  };
-
   const handleMouseDown = (idx: number, id: string) => {
     setIsDragging(true);
     setDragStartIdx(idx);
     const adding = !selectedIds.has(id);
     setIsSelecting(adding);
-    updateRange(idx, idx, adding);
+
+    // Save the current state so we can reference it during the drag
+    setInitialSelectedIds(new Set(selectedIds));
+
+    // Apply the first click
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      adding ? next.add(id) : next.delete(id);
+      return next;
+    });
+  };
+
+  const updateRange = (currentIdx: number) => {
+    if (dragStartIdx === null) return;
+
+    const min = Math.min(dragStartIdx, currentIdx);
+    const max = Math.max(dragStartIdx, currentIdx);
+
+    // 1. Start with the IDs we had before the drag started
+    const next = new Set(initialSelectedIds);
+
+    // 2. Figure out which IDs are in the current drag rectangle
+    const rangeIds = tracks
+      .slice(min, max + 1)
+      .map((t, i) => `${t.id}-${min + i}`);
+
+    // 3. Apply the current action (selecting or deselecting)
+    rangeIds.forEach((id) => {
+      if (isSelecting) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+    });
+
+    setSelectedIds(next);
   };
 
   useEffect(() => {
@@ -84,9 +109,7 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
                 index={i}
                 isSelected={selectedIds.has(uniqueId)}
                 onMouseDown={() => handleMouseDown(i, uniqueId)}
-                onMouseEnter={() =>
-                  isDragging && updateRange(dragStartIdx!, i, isSelecting)
-                }
+                onMouseEnter={() => isDragging && updateRange(i)}
               />
             );
           })}

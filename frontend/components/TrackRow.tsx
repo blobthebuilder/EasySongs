@@ -38,11 +38,10 @@ export default function TrackRow({
           {track.artists.map((a) => a.name).join(", ")}
         </div>
       </td>
-      {/*
+
       <td className="p-4 text-sm text-[#b3b3b3] hidden md:table-cell">
-        {track.album || "Single"}
+        {track.album?.name || "Single"}
       </td>
-*/}
     </tr>
   );
 }

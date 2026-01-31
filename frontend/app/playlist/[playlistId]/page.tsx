@@ -1,4 +1,4 @@
-import { fetchPlaylistTracks } from "@/lib/api/playlists";
+import { fetchPlaylistDetails } from "@/lib/api/playlists";
 import PlaylistHeader from "@/components/PlaylistHeader";
 import TrackTable from "@/components/TrackTable";
 import BackButton from "@/components/BackButton";
@@ -9,23 +9,23 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ playlistId: string }>;
-  searchParams: Promise<{ snapshotId?: string }>;
 };
 
-export default async function PlaylistPage({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function PlaylistPage({ params }: PageProps) {
   const { playlistId } = await params;
 
-  const tracks = await fetchPlaylistTracks(playlistId).catch(() => []);
+  const data = await fetchPlaylistDetails(playlistId).catch(() => null);
+  if (!data) {
+    return <div className="p-8 text-white">Playlist not found.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#121212]">
       {/* Header */}
       <PlaylistHeader
-        title="Playlist"
-        itemCount={tracks.length}
+        title={data.name}
+        images={data.images}
+        itemCount={data.tracks.length}
         gradientFrom="from-[#404040]">
         <BackButton />
       </PlaylistHeader>
@@ -40,10 +40,10 @@ export default async function PlaylistPage({
 
       {/* Reusable Track List with Selection Logic */}
       <div className="px-8 pb-10">
-        {tracks.length === 0 ? (
+        {data.tracks.length === 0 ? (
           <p className="text-[#b3b3b3] p-4">This playlist is empty.</p>
         ) : (
-          <TrackTable tracks={tracks} />
+          <TrackTable tracks={data.tracks} />
         )}
       </div>
     </div>

@@ -31,11 +31,11 @@ func NewRouter() http.Handler {
         
         r.Get("/playlists", getPlaylistsHandler) // GET /api/playlists
         r.Get("/playlists/{playlistID}/tracks", getPlaylistTracksHandler) // GET
+        r.Get("/playlists/{playlistID}/details", getPlaylistDetailsHandler)
         r.Post("/playlists/{playlistID}/copy-to-liked", copyToLikedHandler) // POST
         
         r.Post("/playlists/{playlistID}/remove-duplicates", removeDuplicatesHandler)
 
-        r.Post("/copy", copyHandler)             // POST /api/copy
         r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
     })
 

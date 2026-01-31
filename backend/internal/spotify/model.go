@@ -29,6 +29,7 @@ type SpotifyTrack struct {
 
 type Album struct{
 	Type string `json:"album_type"`
+	Name string `json:"name"`
 }
 
 type Artist struct {
@@ -45,11 +46,17 @@ type SpotifyTrackPage struct {
 	Next  string            `json:"next"`
 }
 
+type ImageObject struct{
+	Url string `json:"url"`
+	Height int `json:"height"`
+	Width int `json:"width"`
+}
 
 type SpotifyPlaylist struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	SnapshotID string `json:"snapshot_id"`
+	Images []ImageObject `json:"images"`
 }
 
 type SpotifyPlaylistPage struct {
@@ -80,4 +87,11 @@ type MetadataResponse struct{
     SnapshotID    string `json:"snapshot_id"`
     Name          string `json:"name"`
     Description string `json:"description"`
+	Images []ImageObject `json:"images"`
+}
+
+type PlaylistDetailsResponse struct {
+    Name   string               `json:"name"`
+    Images []ImageObject `json:"images"`
+    Tracks []SpotifyTrack      `json:"tracks"` 
 }

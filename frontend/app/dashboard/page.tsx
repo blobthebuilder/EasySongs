@@ -29,9 +29,17 @@ export default async function DashboardPage() {
             <Link
               href={`/playlist/${p.id}`}
               className="flex-1">
-              <div className="aspect-square w-full bg-[#333] rounded-md mb-4 shadow-2xl flex items-center justify-center text-4xl group-hover:shadow-none transition-shadow">
-                {/* Replace with <img src={p.images[0].url} /> later */}
-                💿
+              <div className="aspect-square w-full bg-[#333] rounded-md mb-4 shadow-2xl flex items-center justify-center text-4xl group-hover:shadow-none transition-shadow overflow-hidden relative">
+                {p.images && p.images.length > 0 ? (
+                  <img
+                    src={p.images[0].url}
+                    alt={p.name}
+                    className="h-full w-full object-cover"
+                    draggable="false"
+                  />
+                ) : (
+                  <span>💿</span>
+                )}
               </div>
               <h3 className="font-bold text-base truncate mb-1">{p.name}</h3>
             </Link>
