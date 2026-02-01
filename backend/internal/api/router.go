@@ -16,7 +16,7 @@ func NewRouter() http.Handler {
     // Middleware example: CORS for your React frontend
     r.Use(cors.Handler(cors.Options{
         AllowedOrigins:   []string{"http://127.0.0.1:3000", "http://localhost:3000"}, // React dev server
-        AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+        AllowedMethods:   []string{"GET", "POST", "OPTIONS", "PUT", "DELETE"},
         AllowedHeaders:   []string{"Authorization", "Content-Type"},
         AllowCredentials: true,
     }))
@@ -37,6 +37,7 @@ func NewRouter() http.Handler {
         r.Post("/playlists/{playlistID}/remove-duplicates", removeDuplicatesHandler)
 
         r.Post("/playlists/{playlistID}/tracks", addTracksToPlaylistHandler)
+        r.Delete("/playlists/{playlistID}/tracks", removeTracksHandler)
         r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
     })
 

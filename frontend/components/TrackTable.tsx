@@ -6,13 +6,16 @@ import { ApiPlaylist } from "@/types/api/playlists";
 import TrackRow from "./TrackRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 import { addTracksToPlaylist } from "@/lib/api/addTracksToPlaylist";
+import { removeTracksFromPlaylist } from "@/lib/api/removeTracksFromPlaylist";
 
 export default function TrackTable({
   tracks,
   userPlaylists,
+  playlistId,
 }: {
   tracks: ApiTrack[];
   userPlaylists: ApiPlaylist[];
+  playlistId: string;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
@@ -101,6 +104,37 @@ export default function TrackTable({
     setSelectedIds(next);
   };
 
+  const handleRemoveTracks = async () => {
+    // 1. Safety check: Don't do anything if no tracks are selected
+    if (selectedIds.size === 0) return;
+
+    const confirmMessage = `Remove ${selectedIds.size} songs from this playlist?`;
+    if (!window.confirm(confirmMessage)) return;
+
+    // 3. Prepare IDs (removing the -index suffix we added for unique keys)
+    const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
+
+    const targetId = playlistId;
+
+    setIsCopying(true);
+    try {
+      // 4. Call your new DELETE endpoint
+      await removeTracksFromPlaylist(targetId, cleanIds);
+
+      // 5. Update UI: Clear selection
+      setSelectedIds(new Set());
+
+      // 6. Refresh the view so the songs disappear
+      // If you're using Next.js App Router, this is the cleanest way:
+      window.location.reload();
+    } catch (err) {
+      console.error("Delete failed:", err);
+      alert("Failed to remove songs. Please try again.");
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
   useEffect(() => {
     const stop = () => setIsDragging(false);
     window.addEventListener("mouseup", stop);
@@ -110,7 +144,7 @@ export default function TrackTable({
   return (
     <div className="flex flex-col gap-4">
       {/* 1. SELECTION CONTROLS */}
-      <div className="flex items-center gap-4 py-2 min-h-[40px]">
+      <div className="flex items-center gap-4 py-2 min-h-10">
         {" "}
         {/* Fixed height prevents vertical jump */}
         <button
@@ -145,6 +179,13 @@ export default function TrackTable({
             disabled={isCopying}
             className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap">
             {isCopying ? "Copying..." : "Add to Playlist"}
+          </button>
+
+          <button
+            onClick={handleRemoveTracks}
+            disabled={isCopying}
+            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-red-500 uppercase px-4 py-1.5 border border-zinc-800 hover:border-red-500/50 rounded-full transition">
+            {isCopying ? "Removing..." : "Remove from Playlist"}
           </button>
         </div>
       </div>

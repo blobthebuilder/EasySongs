@@ -5,7 +5,8 @@ interface PlaylistHeaderProps {
   images?: { url: string }[];
   imageEmoji?: string;
   gradientFrom?: string;
-  children?: React.ReactNode; // For the BackButton or other nav
+  gradientTo?: string; // Added for the icon gradient
+  children?: React.ReactNode;
 }
 
 export default function PlaylistHeader({
@@ -15,14 +16,26 @@ export default function PlaylistHeader({
   images,
   imageEmoji = "💿",
   gradientFrom = "from-[#404040]",
+  gradientTo, // e.g., "to-[#c4efd9]"
   children,
 }: PlaylistHeaderProps) {
   const imageUrl = images && images.length > 0 ? images[0].url : null;
+
+  // Logic to determine if we should show the "Heart" gradient box
+  const isHeartIcon = imageEmoji === "🤍" || imageEmoji === "♥";
+
   return (
     <div className={`bg-linear-to-b ${gradientFrom} to-[#121212] p-8 pt-6`}>
       <nav className="mb-6">{children}</nav>
       <div className="flex items-end gap-6">
-        <div className="w-52 h-52 bg-[#282828] shadow-2xl flex items-center justify-center text-6xl rounded-md shrink-0 overflow-hidden">
+        {/* Cover Art Container */}
+        <div
+          className={`w-52 h-52 shadow-2xl flex items-center justify-center rounded-md shrink-0 overflow-hidden
+          ${
+            !imageUrl && isHeartIcon
+              ? `bg-linear-to-br from-[#450af5] ${gradientTo || "to-[#c4efd9]"}`
+              : "bg-[#282828]"
+          }`}>
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -31,9 +44,12 @@ export default function PlaylistHeader({
               draggable="false"
             />
           ) : (
-            <span>{imageEmoji}</span>
+            <span className={`text-6xl ${isHeartIcon ? "text-white" : ""}`}>
+              {imageEmoji}
+            </span>
           )}
         </div>
+
         <div className="flex flex-col gap-2">
           <span className="text-xs font-bold uppercase tracking-wider text-white">
             {type}

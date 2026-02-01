@@ -51,6 +51,21 @@ export default function AddToPlaylistModal({
 
         {/* List Area: Slightly lighter background than the container to create depth */}
         <div className="overflow-y-auto p-2 bg-[#121212]/50">
+          <button
+            onClick={() => onSelect("liked-songs")}
+            className="w-full flex items-center gap-4 p-3 hover:bg-[#2a2a2a] rounded-md transition-all group text-left border-b border-white/5 mb-1">
+            <div className="w-12 h-12 bg-linear-to-br from-[#450af5] to-[#c4efd9] rounded shadow-lg shrink-0 flex items-center justify-center border border-white/5">
+              <span className="text-white text-xl">♥</span>
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-bold text-white text-[15px] truncate group-hover:text-green-500 transition-colors">
+                Liked Songs
+              </span>
+              <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mt-0.5">
+                Auto-save to Library
+              </span>
+            </div>
+          </button>
           {playlists.map((pl) => (
             <button
               key={pl.id}

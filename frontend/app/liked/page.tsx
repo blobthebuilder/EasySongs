@@ -16,8 +16,9 @@ export default async function LikedPage() {
       <PlaylistHeader
         title="Liked Songs"
         itemCount={likedSongs.length}
-        imageEmoji="🤍"
-        gradientFrom="from-[#5038a0]">
+        imageEmoji="♥"
+        gradientFrom="from-[#20154d]"
+        gradientTo="to-[#8d8ad3]">
         <BackButton />
       </PlaylistHeader>
 
@@ -25,6 +26,7 @@ export default async function LikedPage() {
         <TrackTable
           tracks={likedSongs}
           userPlaylists={userPlaylists}
+          playlistId={"liked-songs"}
         />
       </div>
     </div>

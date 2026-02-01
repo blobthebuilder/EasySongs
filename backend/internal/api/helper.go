@@ -2,7 +2,6 @@ package api
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -66,25 +65,20 @@ func shouldReplaceByAlbumType(
 }
 
 
-// Helper function to keep the loop clean
-func sendAddTracksRequest(playlistID string, uris []string, token string) error {
-	url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID)
-	
-	body, _ := json.Marshal(map[string][]string{"uris": uris})
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
+func executeSpotifyRequest(method, url string, body []byte, token string) error {
+    req, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
+    req.Header.Set("Authorization", "Bearer "+token)
+    req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return err
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("spotify API returned status %d", resp.StatusCode)
-	}
-	return nil
+    if resp.StatusCode >= 400 {
+        return fmt.Errorf("spotify returned status %d", resp.StatusCode)
+    }
+    return nil
 }

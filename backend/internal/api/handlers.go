@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -225,45 +226,114 @@ func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
+
 func addTracksToPlaylistHandler(w http.ResponseWriter, r *http.Request) {
-	playlistID := chi.URLParam(r, "playlistID")
-	token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+    playlistID := chi.URLParam(r, "playlistID")
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
 
-	var req CopyTracksRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
+    var req CopyTracksRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
 
-	// 1. Define the batch size
-	batchSize := 100
-	totalTracks := len(req.TrackIDs)
+    // 1. Dynamic configuration based on target
+    batchSize := 100
+    method := "POST"
+    baseUrl := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID)
 
-	// 2. Loop through tracks in chunks
-	for i := 0; i < totalTracks; i += batchSize {
-		end := i + batchSize
-		if end > totalTracks {
-			end = totalTracks
-		}
+    if playlistID == "liked-songs" {
+        batchSize = 50 // Spotify limit for Save Tracks is 50
+        method = "PUT"
+        baseUrl = "https://api.spotify.com/v1/me/tracks"
+    }
 
-		// Get the current slice chunk
-		chunk := req.TrackIDs[i:end]
-		
-		// Convert IDs to URIs
-		var uris []string
-		for _, id := range chunk {
-			uris = append(uris, "spotify:track:"+id)
-		}
+    totalTracks := len(req.TrackIDs)
 
-		// 3. Send the request for this specific chunk
-		err := sendAddTracksRequest(playlistID, uris, token.AccessToken)
-		if err != nil {
-			http.Error(w, "Error adding batch: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
+    // 2. Loop through tracks in chunks
+    for i := 0; i < totalTracks; i += batchSize {
+        end := i + batchSize
+        if end > totalTracks {
+            end = totalTracks
+        }
 
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "All tracks added successfully"})
+        chunk := req.TrackIDs[i:end]
+        
+        // 3. Prepare the specific payload format
+        var bodyData []byte
+        if playlistID == "liked-songs" {
+            // Liked Songs wants: {"ids": ["id1", "id2"]}
+            bodyData, _ = json.Marshal(map[string][]string{"ids": chunk})
+        } else {
+            // Playlists want: {"uris": ["spotify:track:id1", "spotify:track:id2"]}
+            var uris []string
+            for _, id := range chunk {
+                uris = append(uris, "spotify:track:"+id)
+            }
+            bodyData, _ = json.Marshal(map[string][]string{"uris": uris})
+        }
+
+        // 4. Execute the request
+        err := executeSpotifyRequest(method, baseUrl, bodyData, token.AccessToken)
+        if err != nil {
+            http.Error(w, "Error adding batch: "+err.Error(), http.StatusInternalServerError)
+            return
+        }
+    }
+
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(map[string]string{"message": "Action completed successfully"})
 }
 
+
+func removeTracksHandler(w http.ResponseWriter, r *http.Request) {
+	playlistID := chi.URLParam(r, "playlistID")
+    token, _ := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+
+    var req CopyTracksRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid body", http.StatusBadRequest)
+        return
+    }
+
+    // --- Branching Logic ---
+    var method string = "DELETE"
+    var url string
+    var batchSize int
+
+    if playlistID == "liked-songs" {
+        // TARGET: User Library
+        url = "https://api.spotify.com/v1/me/tracks"
+        batchSize = 50 // Spotify library limit is 50
+    } else {
+        // TARGET: Specific Playlist
+        url = fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID)
+        batchSize = 100 // Playlist limit is 100
+    }
+
+    for i := 0; i < len(req.TrackIDs); i += batchSize {
+        end := i + batchSize
+        if end > len(req.TrackIDs) { end = len(req.TrackIDs) }
+        chunk := req.TrackIDs[i:end]
+
+        var body []byte
+        if playlistID == "liked-songs" {
+            // Liked Songs format: {"ids": ["4iV5W9u01YfvAUvUnpBPkT", ...]}
+            body, _ = json.Marshal(map[string][]string{"ids": chunk})
+        } else {
+            // Playlist format: {"tracks": [{"uri": "spotify:track:4iV5W9u01YfvAUvUnpBPkT"}]}
+            type trk struct { URI string `json:"uri"` }
+            var tracks []trk
+            for _, id := range chunk {
+                tracks = append(tracks, trk{URI: "spotify:track:" + id})
+            }
+            body, _ = json.Marshal(map[string][]trk{"tracks": tracks})
+        }
+
+        if err := executeSpotifyRequest(method, url, body, token.AccessToken); err != nil {
+            http.Error(w, "Spotify removal error: "+err.Error(), http.StatusInternalServerError)
+            return
+        }
+    }
+    w.WriteHeader(http.StatusNoContent)
+}

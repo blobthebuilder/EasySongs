@@ -49,6 +49,7 @@ export default async function PlaylistPage({ params }: PageProps) {
           <TrackTable
             tracks={data.tracks}
             userPlaylists={userPlaylists}
+            playlistId={playlistId}
           />
         )}
       </div>
