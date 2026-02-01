@@ -4,6 +4,7 @@ import TrackTable from "@/components/TrackTable";
 import BackButton from "@/components/BackButton";
 import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
 import RemoveDuplicatesButton from "@/components/RemoveDuplicatesButton";
+import { fetchPlaylists } from "@/lib/api/playlists";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export default async function PlaylistPage({ params }: PageProps) {
   if (!data) {
     return <div className="p-8 text-white">Playlist not found.</div>;
   }
+
+  const userPlaylists = await fetchPlaylists().catch(() => []);
 
   return (
     <div className="min-h-screen bg-[#121212]">
@@ -43,7 +46,10 @@ export default async function PlaylistPage({ params }: PageProps) {
         {data.tracks.length === 0 ? (
           <p className="text-[#b3b3b3] p-4">This playlist is empty.</p>
         ) : (
-          <TrackTable tracks={data.tracks} />
+          <TrackTable
+            tracks={data.tracks}
+            userPlaylists={userPlaylists}
+          />
         )}
       </div>
     </div>

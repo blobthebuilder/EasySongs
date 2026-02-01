@@ -1,6 +1,10 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -23,6 +27,11 @@ type TrackMeta struct{
 	Explicit bool
 	AlbumType string
 }
+
+type CopyTracksRequest struct {
+	TrackIDs []string `json:"track_ids"`
+}
+
 
 func normalizeTrackName(trackName string) string {
 	trackName = strings.ToLower(trackName)
@@ -54,4 +63,28 @@ func shouldReplaceByAlbumType(
     albumPrio map[string]int,
 ) bool {
     return albumPrio[candidate.AlbumType] < albumPrio[existing.AlbumType]
+}
+
+
+// Helper function to keep the loop clean
+func sendAddTracksRequest(playlistID string, uris []string, token string) error {
+	url := fmt.Sprintf("https://api.spotify.com/v1/playlists/%s/tracks", playlistID)
+	
+	body, _ := json.Marshal(map[string][]string{"uris": uris})
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("spotify API returned status %d", resp.StatusCode)
+	}
+	return nil
 }

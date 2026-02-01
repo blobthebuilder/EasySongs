@@ -5,6 +5,11 @@ export type ApiPlaylist = {
   name: string;
   snapshot_id: string;
   images: ImageObject[];
+  tracks: TracksObject;
+};
+
+export type TracksObject = {
+  total: number;
 };
 
 export type ImageObject = {

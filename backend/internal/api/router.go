@@ -36,6 +36,7 @@ func NewRouter() http.Handler {
         
         r.Post("/playlists/{playlistID}/remove-duplicates", removeDuplicatesHandler)
 
+        r.Post("/playlists/{playlistID}/tracks", addTracksToPlaylistHandler)
         r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
     })
 

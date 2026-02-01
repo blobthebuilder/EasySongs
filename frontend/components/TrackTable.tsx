@@ -2,9 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { ApiTrack } from "@/types/api/tracks";
+import { ApiPlaylist } from "@/types/api/playlists";
 import TrackRow from "./TrackRow";
+import AddToPlaylistModal from "./AddToPlaylistModal";
+import { addTracksToPlaylist } from "@/lib/api/addTracksToPlaylist";
 
-export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
+export default function TrackTable({
+  tracks,
+  userPlaylists,
+}: {
+  tracks: ApiTrack[];
+  userPlaylists: ApiPlaylist[];
+}) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartIdx, setDragStartIdx] = useState<number | null>(null);
@@ -15,6 +24,27 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
   const [initialSelectedIds, setInitialSelectedIds] = useState<Set<string>>(
     new Set(),
   );
+
+  const [showModal, setShowModal] = useState(false);
+
+  const [isCopying, setIsCopying] = useState(false);
+
+  const handleCopyTracks = async (targetId: string) => {
+    const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
+
+    setIsCopying(true); // Start the spinner
+    try {
+      await addTracksToPlaylist(targetId, cleanIds);
+      setShowModal(false);
+      setSelectedIds(new Set());
+      alert("Songs copied successfully!");
+    } catch (err) {
+      console.log(err);
+      alert("Failed to copy songs.");
+    } finally {
+      setIsCopying(false); // Stop the spinner
+    }
+  };
 
   const toggleSelectAll = () => {
     if (allSelected) {
@@ -67,6 +97,16 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
     setSelectedIds(next);
   };
 
+  const handleCopyToPlaylist = async (targetPlaylistId: string) => {
+    const idsToCopy = Array.from(selectedIds).map((id) => id.split("-")[0]); // Strip the index
+
+    console.log(`Copying ${idsToCopy.length} tracks to ${targetPlaylistId}`);
+    // This is where you'll call your API later!
+
+    setShowModal(false);
+    alert(`Copied ${idsToCopy.length} songs!`);
+  };
+
   useEffect(() => {
     const stop = () => setIsDragging(false);
     window.addEventListener("mouseup", stop);
@@ -75,7 +115,7 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 1. SELECTION CONTROLS (Restored here) */}
+      {/* 1. SELECTION CONTROLS */}
       <div className="flex items-center gap-4 py-2">
         <button
           onClick={toggleSelectAll}
@@ -84,9 +124,17 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
         </button>
 
         {selectedIds.size > 0 && (
-          <span className="text-sm font-bold text-[#1db954] animate-in fade-in duration-300">
-            {selectedIds.size} Selected
-          </span>
+          <>
+            <span className="text-sm font-bold text-[#1db954]">
+              {selectedIds.size} Selected
+            </span>
+
+            <button
+              onClick={() => setShowModal(true)}
+              className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition">
+              Add to Playlist
+            </button>
+          </>
         )}
       </div>
 
@@ -115,6 +163,14 @@ export default function TrackTable({ tracks }: { tracks: ApiTrack[] }) {
           })}
         </tbody>
       </table>
+
+      {showModal && (
+        <AddToPlaylistModal
+          playlists={userPlaylists}
+          onClose={() => !isCopying && setShowModal(false)} // Prevent closing while busy
+          onSelect={handleCopyTracks} // This now triggers the API call
+        />
+      )}
     </div>
   );
 }

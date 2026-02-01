@@ -57,6 +57,11 @@ type SpotifyPlaylist struct {
 	Name string `json:"name"`
 	SnapshotID string `json:"snapshot_id"`
 	Images []ImageObject `json:"images"`
+	Tracks TracksObject `json:"tracks"`
+}
+
+type TracksObject struct {
+	Total int `json:"total"`
 }
 
 type SpotifyPlaylistPage struct {

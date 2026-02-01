@@ -225,3 +225,45 @@ func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
+func addTracksToPlaylistHandler(w http.ResponseWriter, r *http.Request) {
+	playlistID := chi.URLParam(r, "playlistID")
+	token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+
+	var req CopyTracksRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Define the batch size
+	batchSize := 100
+	totalTracks := len(req.TrackIDs)
+
+	// 2. Loop through tracks in chunks
+	for i := 0; i < totalTracks; i += batchSize {
+		end := i + batchSize
+		if end > totalTracks {
+			end = totalTracks
+		}
+
+		// Get the current slice chunk
+		chunk := req.TrackIDs[i:end]
+		
+		// Convert IDs to URIs
+		var uris []string
+		for _, id := range chunk {
+			uris = append(uris, "spotify:track:"+id)
+		}
+
+		// 3. Send the request for this specific chunk
+		err := sendAddTracksRequest(playlistID, uris, token.AccessToken)
+		if err != nil {
+			http.Error(w, "Error adding batch: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "All tracks added successfully"})
+}
+
