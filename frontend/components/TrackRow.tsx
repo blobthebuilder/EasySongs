@@ -23,11 +23,13 @@ export default function TrackRow({
         isSelected ? "bg-white/20" : "hover:bg-white/10"
       }`}>
       <td className="p-4 text-[#b3b3b3] text-sm w-12">
-        {isSelected ? (
-          <span className="text-[#1db954] font-bold">✓</span>
-        ) : (
-          index + 1
-        )}
+        <div className="w-8 flex items-center justify-center">
+          {isSelected ? (
+            <span className="text-[#1db954] font-bold">✓</span>
+          ) : (
+            <span className="tabular-nums">{index + 1}</span>
+          )}
+        </div>
       </td>
       <td className="p-4">
         <div

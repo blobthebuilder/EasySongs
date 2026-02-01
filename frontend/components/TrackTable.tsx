@@ -54,6 +54,10 @@ export default function TrackTable({
     }
   };
 
+  const handleDeselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
   const handleMouseDown = (idx: number, id: string) => {
     setIsDragging(true);
     setDragStartIdx(idx);
@@ -97,16 +101,6 @@ export default function TrackTable({
     setSelectedIds(next);
   };
 
-  const handleCopyToPlaylist = async (targetPlaylistId: string) => {
-    const idsToCopy = Array.from(selectedIds).map((id) => id.split("-")[0]); // Strip the index
-
-    console.log(`Copying ${idsToCopy.length} tracks to ${targetPlaylistId}`);
-    // This is where you'll call your API later!
-
-    setShowModal(false);
-    alert(`Copied ${idsToCopy.length} songs!`);
-  };
-
   useEffect(() => {
     const stop = () => setIsDragging(false);
     window.addEventListener("mouseup", stop);
@@ -116,26 +110,43 @@ export default function TrackTable({
   return (
     <div className="flex flex-col gap-4">
       {/* 1. SELECTION CONTROLS */}
-      <div className="flex items-center gap-4 py-2">
+      <div className="flex items-center gap-4 py-2 min-h-[40px]">
+        {" "}
+        {/* Fixed height prevents vertical jump */}
         <button
           onClick={toggleSelectAll}
-          className="text-[10px] font-bold tracking-widest text-[#b3b3b3] hover:text-white uppercase border border-[#b3b3b3] px-3 py-1 rounded-full transition">
-          {allSelected ? "Deselect All" : "Select All"}
+          disabled={isCopying || allSelected}
+          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full transition-all shrink-0
+      ${
+        allSelected
+          ? "text-[#535353] border-transparent cursor-default"
+          : "text-[#b3b3b3] border border-[#b3b3b3] hover:text-white hover:border-white"
+      }`}>
+          Select All
         </button>
+        {/* Wrap the dynamic content in a container that maintains height and handles transitions */}
+        <div
+          className={`flex items-center gap-4 transition-opacity duration-200 ${selectedIds.size > 0 ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className="h-4 w-px bg-white/10" />
 
-        {selectedIds.size > 0 && (
-          <>
-            <span className="text-sm font-bold text-[#1db954]">
-              {selectedIds.size} Selected
-            </span>
+          <span className="text-sm font-bold text-[#1db954] whitespace-nowrap">
+            {selectedIds.size} Selected
+          </span>
 
-            <button
-              onClick={() => setShowModal(true)}
-              className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition">
-              Add to Playlist
-            </button>
-          </>
-        )}
+          <button
+            onClick={handleDeselectAll}
+            disabled={isCopying}
+            className="text-[10px] font-bold tracking-widest text-[#b3b3b3] hover:text-red-400 uppercase transition whitespace-nowrap">
+            Deselect All
+          </button>
+
+          <button
+            onClick={() => setShowModal(true)}
+            disabled={isCopying}
+            className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap">
+            {isCopying ? "Copying..." : "Add to Playlist"}
+          </button>
+        </div>
       </div>
 
       {/* 2. TABLE */}
