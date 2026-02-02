@@ -16,6 +16,7 @@ export default async function PlaylistPage({ params }: PageProps) {
   const { playlistId } = await params;
 
   const data = await fetchPlaylistDetails(playlistId).catch(() => null);
+
   if (!data) {
     return <div className="p-8 text-white">Playlist not found.</div>;
   }
@@ -48,6 +49,7 @@ export default async function PlaylistPage({ params }: PageProps) {
         ) : (
           <TrackTable
             tracks={data.tracks}
+            tags={data.tags}
             userPlaylists={userPlaylists}
             playlistId={playlistId}
           />

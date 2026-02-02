@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/blobthebuilder/easysongs/internal/db"
 	"github.com/blobthebuilder/easysongs/internal/spotify"
 )
 
@@ -31,6 +32,17 @@ type CopyTracksRequest struct {
 	TrackIDs []string `json:"track_ids"`
 }
 
+type TagBatchRequest struct {
+    TagName  string   `json:"tagName"`
+    TrackIDs []string `json:"trackIDs"`
+}
+
+type PlaylistDetailsResponse struct {
+    Name   string               `json:"name"`
+    Images []spotify.ImageObject `json:"images"`
+    Tracks []spotify.SpotifyTrack      `json:"tracks"` 
+	Tags map[string][]db.TagInfo  `json:"tags"`
+}
 
 func normalizeTrackName(trackName string) string {
 	trackName = strings.ToLower(trackName)

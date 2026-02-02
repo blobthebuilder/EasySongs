@@ -7,14 +7,19 @@ import TrackRow from "./TrackRow";
 import AddToPlaylistModal from "./AddToPlaylistModal";
 import { addTracksToPlaylist } from "@/lib/api/addTracksToPlaylist";
 import { removeTracksFromPlaylist } from "@/lib/api/removeTracksFromPlaylist";
+import { apiFetch } from "@/lib/api/fetch";
+import { useRouter } from "next/navigation";
+import { TagsMap } from "@/types/api/tags";
 
 export default function TrackTable({
   tracks,
   userPlaylists,
+  tags,
   playlistId,
 }: {
   tracks: ApiTrack[];
   userPlaylists: ApiPlaylist[];
+  tags: TagsMap;
   playlistId: string;
 }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -31,6 +36,8 @@ export default function TrackTable({
   const [showModal, setShowModal] = useState(false);
 
   const [isCopying, setIsCopying] = useState(false);
+
+  const router = useRouter();
 
   const handleCopyTracks = async (targetId: string) => {
     const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
@@ -55,10 +62,6 @@ export default function TrackTable({
     } else {
       setSelectedIds(new Set(tracks.map((t, i) => `${t.id}-${i}`)));
     }
-  };
-
-  const handleDeselectAll = () => {
-    setSelectedIds(new Set());
   };
 
   const handleMouseDown = (idx: number, id: string) => {
@@ -135,6 +138,40 @@ export default function TrackTable({
     }
   };
 
+  const [tagName, setTagName] = useState("");
+  const [isTagging, setIsTagging] = useState(false);
+  const [showTagInput, setShowTagInput] = useState(false);
+
+  const handleTagSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation: Ensure we have a tag name and at least one song selected
+    if (!tagName.trim() || selectedIds.size === 0) return;
+
+    setIsTagging(true);
+    try {
+      // Using your apiFetch helper
+      await apiFetch(`/api/playlists/${playlistId}/tags`, {
+        method: "POST",
+        body: JSON.stringify({
+          tagName: tagName.trim(),
+          trackIDs: Array.from(selectedIds), // Matches your Go []string struct
+        }),
+      });
+
+      // Reset UI on success
+      setTagName("");
+      setShowTagInput(false);
+
+      router.refresh();
+    } catch (error: any) {
+      console.error("Tagging failed:", error.message);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setIsTagging(false);
+    }
+  };
+
   useEffect(() => {
     const stop = () => setIsDragging(false);
     window.addEventListener("mouseup", stop);
@@ -149,7 +186,7 @@ export default function TrackTable({
         {/* Fixed height prevents vertical jump */}
         <button
           onClick={toggleSelectAll}
-          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full transition-all shrink-0 border flex items-center justify-center w-[125px]
+          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full transition-all shrink-0 border flex items-center justify-center w-31.25
     ${
       allSelected
         ? "bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700"
@@ -165,6 +202,39 @@ export default function TrackTable({
           <span className="text-sm font-bold text-[#1db954] whitespace-nowrap">
             {selectedIds.size} Selected
           </span>
+
+          {/* TAGGING UI */}
+          {!showTagInput ? (
+            <button
+              onClick={() => setShowTagInput(true)}
+              className="text-[10px] font-bold tracking-widest text-white bg-[#1DB954]/20 border border-[#1DB954]/40 hover:bg-[#1DB954]/30 uppercase px-4 py-1.5 rounded-full transition">
+              Tag Songs
+            </button>
+          ) : (
+            <form
+              onSubmit={handleTagSubmit}
+              className="flex items-center gap-2 animate-in slide-in-from-left-2">
+              <input
+                autoFocus
+                value={tagName}
+                onChange={(e) => setTagName(e.target.value)}
+                placeholder="Tag Name (e.g. Gym)"
+                className="bg-[#282828] border border-white/10 rounded-full px-3 py-1 text-[10px] text-white focus:outline-none focus:border-[#1DB954] w-32"
+              />
+              <button
+                type="submit"
+                disabled={isTagging}
+                className="text-[10px] font-bold text-[#1DB954] hover:text-white">
+                {isTagging ? "..." : "ADD"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowTagInput(false)}
+                className="text-[10px] font-bold text-zinc-500 hover:text-white">
+                ESC
+              </button>
+            </form>
+          )}
 
           <button
             onClick={() => setShowModal(true)}
@@ -202,6 +272,7 @@ export default function TrackTable({
                 isSelected={selectedIds.has(uniqueId)}
                 onMouseDown={() => handleMouseDown(i, uniqueId)}
                 onMouseEnter={() => isDragging && updateRange(i)}
+                trackTags={tags?.[track.id] || []}
               />
             );
           })}

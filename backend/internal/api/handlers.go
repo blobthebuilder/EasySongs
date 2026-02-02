@@ -3,9 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"sync"
 
+	"github.com/blobthebuilder/easysongs/internal/db"
 	"github.com/blobthebuilder/easysongs/internal/middleware"
 	"github.com/blobthebuilder/easysongs/internal/spotify"
 	"github.com/go-chi/chi/v5"
@@ -44,8 +47,28 @@ func getPlaylistTracksHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    json.NewEncoder(w).Encode(tracks)
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
+    tagsMap, err := db.GetPlaylistTagsMap(userID, playlistID)
+    if err != nil {
+        log.Printf("DB Error fetching tags: %v", err)
+        tagsMap = make(map[string][]db.TagInfo)
+    }
+
+    response := struct {
+        Tracks []spotify.SpotifyTrack   `json:"tracks"`
+        Tags   map[string][]db.TagInfo `json:"tags"`
+    }{
+        Tracks: tracks,
+        Tags:   tagsMap,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }
 
 func copyToLikedHandler(w http.ResponseWriter, r *http.Request){
@@ -187,16 +210,25 @@ func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
     playlistID := chi.URLParam(r, "playlistID")
     
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+    
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
     var (
-		tracks   []spotify.SpotifyTrack // Replace with your actual track type
-		metadata *spotify.MetadataResponse // Replace with your actual metadata type
+		tracks   []spotify.SpotifyTrack 
+		metadata *spotify.MetadataResponse 
+        tags     map[string][]db.TagInfo
 		trackErr error
 		metaErr  error
+        tagsErr  error
 		wg       sync.WaitGroup
 	)
 
-    wg.Add(2)
+    wg.Add(3)
+    
 
     // Task 1: Fetch Tracks
 	go func() {
@@ -210,19 +242,25 @@ func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
 		metadata, metaErr = spotify.GetPlaylistMetadata(token.AccessToken, playlistID, []string{"name", "images"})
 	}()
 
+    go func() {
+        defer wg.Done()
+        tags, tagsErr = db.GetPlaylistTagsMap(userID, playlistID)
+    }()
+
 	wg.Wait()
 
-    if trackErr != nil || metaErr != nil {
-		http.Error(w, "Failed to fetch data from Spotify", http.StatusInternalServerError)
+    if trackErr != nil || metaErr != nil || tagsErr != nil{
+		http.Error(w, "Failed to fetch playlist data", http.StatusInternalServerError)
 		return
 	}
 
-    response := spotify.PlaylistDetailsResponse{
+    response := PlaylistDetailsResponse{
         Name:   metadata.Name,
         Images: metadata.Images,
         Tracks: tracks,
+        Tags: tags,
     }
-
+    
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
@@ -335,5 +373,40 @@ func removeTracksHandler(w http.ResponseWriter, r *http.Request) {
             return
         }
     }
+    w.WriteHeader(http.StatusNoContent)
+}
+
+func addTagToTracksHandler(w http.ResponseWriter, r *http.Request) {
+    playlistID := chi.URLParam(r, "playlistID")
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+    
+    var body TagBatchRequest
+    if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+        http.Error(w, "Invalid body", http.StatusBadRequest)
+        return
+    }
+
+    if body.TagName == "" || len(body.TrackIDs) == 0 {
+        http.Error(w, "TagName and at least one TrackID required", http.StatusBadRequest)
+        return
+    }
+    
+    // frontend adds a -index to id, so clean it
+    cleanIDs := make([]string, 0, len(body.TrackIDs))
+    for _, id := range body.TrackIDs {
+        parts := strings.Split(id, "-")
+        cleanIDs = append(cleanIDs, parts[0])
+    }
+
+    err := db.AddTagsToSongsBatch(userID, playlistID, cleanIDs, body.TagName)
+    if err != nil {
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+
     w.WriteHeader(http.StatusNoContent)
 }

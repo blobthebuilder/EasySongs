@@ -28,17 +28,27 @@ func NewRouter() http.Handler {
     r.Route("/api", func(r chi.Router) {
         r.Use(middleware.RequireAuth)
         r.Use(middleware.RequireSpotifyToken)
-        
-        r.Get("/playlists", getPlaylistsHandler) // GET /api/playlists
-        r.Get("/playlists/{playlistID}/tracks", getPlaylistTracksHandler) // GET
-        r.Get("/playlists/{playlistID}/details", getPlaylistDetailsHandler)
-        r.Post("/playlists/{playlistID}/copy-to-liked", copyToLikedHandler) // POST
-        
-        r.Post("/playlists/{playlistID}/remove-duplicates", removeDuplicatesHandler)
 
-        r.Post("/playlists/{playlistID}/tracks", addTracksToPlaylistHandler)
-        r.Delete("/playlists/{playlistID}/tracks", removeTracksHandler)
-        r.Get("/liked", getLikedSongsHandler)    // GET /api/liked
+        r.Get("/liked", getLikedSongsHandler)  // GET liked songs
+
+        r.Route("/playlists", func(r chi.Router) {
+            r.Get("/", getPlaylistsHandler) // GET all playlists
+
+            // Single Playlist Actions
+            r.Route("/{playlistID}", func(r chi.Router) {
+                r.Get("/details", getPlaylistDetailsHandler) // playlist details
+                r.Post("/copy-to-liked", copyToLikedHandler) // copy playlist to liked songs
+                r.Post("/remove-duplicates", removeDuplicatesHandler) // remove dupes
+                r.Post("/tags", addTagToTracksHandler) // add tags to tracks in playlist
+
+                // Track-specific actions within a playlist
+                r.Route("/tracks", func(r chi.Router) {
+                    r.Get("/", getPlaylistTracksHandler) // get all tracks in playlist
+                    r.Post("/", addTracksToPlaylistHandler) // add tracks to playlist
+                    r.Delete("/", removeTracksHandler) // delete tracks from playlist
+                })
+            })
+        })
     })
 
     r.Route("/auth", func(r chi.Router) {

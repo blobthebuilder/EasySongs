@@ -1,6 +1,8 @@
 package spotify
 
-import "time"
+import (
+	"time"
+)
 
 type SpotifyToken struct {
 	AccessToken  string
@@ -95,8 +97,3 @@ type MetadataResponse struct{
 	Images []ImageObject `json:"images"`
 }
 
-type PlaylistDetailsResponse struct {
-    Name   string               `json:"name"`
-    Images []ImageObject `json:"images"`
-    Tracks []SpotifyTrack      `json:"tracks"` 
-}

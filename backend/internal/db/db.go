@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/blobthebuilder/easysongs/internal/spotify"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -94,4 +95,70 @@ func UpdateSpotifyTokens(userID, accessToken, refreshToken string, expiresAt tim
         WHERE spotify_user_id = $4
     `, accessToken, refreshToken, expiresAt, userID)
     return err
+}
+
+func AddTagsToSongsBatch(userID string, playlistID string, songIDs []string, tagName string) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    // 1. Get or Create the Tag ID
+    var tagID int
+    err = tx.QueryRow(`
+        INSERT INTO tags (name, user_id)
+        VALUES ($1, $2)
+        ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id
+    `, tagName, userID).Scan(&tagID)
+    if err != nil {
+        return err
+    }
+
+    // 2. Batch Link the Tag to all selected songs
+    // pq.Array(songIDs) converts the Go slice into a Postgres array format
+    _, err = tx.Exec(`
+        INSERT INTO playlist_song_tags (user_id, playlist_id, song_id, tag_id)
+        SELECT $1, $2, unnest($3::text[]), $4
+        ON CONFLICT DO NOTHING
+    `, userID, playlistID, pq.Array(songIDs), tagID)
+    
+    if err != nil {
+        return err
+    }
+
+    return tx.Commit()
+}
+
+// GetPlaylistTagsMap returns a map where key = songID and value = slice of Tags
+func GetPlaylistTagsMap(userID string, playlistID string) (map[string][]TagInfo, error) {
+	// We use a map for O(1) lookup on the frontend
+	tagsMap := make(map[string][]TagInfo)
+
+	rows, err := db.Query(`
+		SELECT pst.song_id, t.id, t.name, COALESCE(t.color, '')
+		FROM playlist_song_tags pst
+		JOIN tags t ON pst.tag_id = t.id
+		WHERE pst.user_id = $1 AND pst.playlist_id = $2
+	`, userID, playlistID)
+	
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var songID string
+		var t TagInfo
+		
+		if err := rows.Scan(&songID, &t.ID, &t.Name, &t.Color); err != nil {
+			return nil, err
+		}
+
+		// Append the tag to the slice for this specific song
+		tagsMap[songID] = append(tagsMap[songID], t)
+	}
+
+	return tagsMap, nil
 }

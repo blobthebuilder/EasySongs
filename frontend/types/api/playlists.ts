@@ -1,4 +1,5 @@
 import { ApiTrack } from "./tracks";
+import { TagsMap } from "./tags";
 
 export type ApiPlaylist = {
   id: string;
@@ -35,4 +36,5 @@ export type PlaylistDetails = {
   images: ImageObject[];
   description: string;
   tracks: ApiTrack[];
+  tags: TagsMap;
 };
