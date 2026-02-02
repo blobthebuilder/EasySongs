@@ -149,14 +149,13 @@ export default function TrackTable({
         {/* Fixed height prevents vertical jump */}
         <button
           onClick={toggleSelectAll}
-          disabled={isCopying || allSelected}
-          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full transition-all shrink-0
-      ${
-        allSelected
-          ? "text-[#535353] border-transparent cursor-default"
-          : "text-[#b3b3b3] border border-[#b3b3b3] hover:text-white hover:border-white"
-      }`}>
-          Select All
+          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full transition-all shrink-0 border flex items-center justify-center w-[125px]
+    ${
+      allSelected
+        ? "bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700"
+        : "bg-[#1DB954] text-black border-[#1DB954] hover:bg-[#1ed760] hover:scale-105"
+    }`}>
+          {allSelected ? "Deselect All" : "Select All"}
         </button>
         {/* Wrap the dynamic content in a container that maintains height and handles transitions */}
         <div
@@ -166,13 +165,6 @@ export default function TrackTable({
           <span className="text-sm font-bold text-[#1db954] whitespace-nowrap">
             {selectedIds.size} Selected
           </span>
-
-          <button
-            onClick={handleDeselectAll}
-            disabled={isCopying}
-            className="text-[10px] font-bold tracking-widest text-[#b3b3b3] hover:text-red-400 uppercase transition whitespace-nowrap">
-            Deselect All
-          </button>
 
           <button
             onClick={() => setShowModal(true)}

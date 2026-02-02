@@ -46,13 +46,13 @@ export default function RemoveDuplicatesButton({
 
   return (
     <div
-      className="relative inline-flex items-center"
+      className="relative inline-flex h-9 items-stretch"
       ref={menuRef}>
       {/* MAIN BUTTON */}
       <button
         onClick={handleRemove}
         disabled={isPending}
-        className={`flex items-center gap-2 px-4 py-1.5 rounded-l-full border-y border-l text-xs font-bold tracking-widest uppercase transition-all ${
+        className={`flex items-center gap-2 px-4 rounded-l-full border text-xs font-bold tracking-widest uppercase transition-all ${
           isPending
             ? "border-gray-600 text-gray-600"
             : "border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:bg-white/5"
@@ -63,9 +63,10 @@ export default function RemoveDuplicatesButton({
       {/* DROPDOWN TOGGLE */}
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="px-2 py-1.5 rounded-r-full border text-[#b3b3b3] border-[#b3b3b3] hover:text-white hover:bg-white/5 transition-all">
+        className="flex items-center justify-center px-3 rounded-r-full border-y border-r border-l-0 text-[#b3b3b3] border-[#b3b3b3] hover:text-white hover:bg-white/5 transition-all">
+        {/* Removed redundant padding, used flex-center and border-l-0 to avoid double borders */}
         <ChevronDown
-          size={14}
+          size={16}
           className={`transition-transform ${showMenu ? "rotate-180" : ""}`}
         />
       </button>
