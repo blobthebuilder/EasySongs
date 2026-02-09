@@ -43,7 +43,40 @@ func Init(){
         log.Fatal("Failed to ping DB:", err)
     }
 
+    createSchema()
+
     log.Println("Connected to Postgres successfully")
+}
+
+func createSchema() {
+	schema := `
+	CREATE TABLE IF NOT EXISTS spotify_users (
+		spotify_user_id TEXT PRIMARY KEY,
+		access_token TEXT NOT NULL,
+		refresh_token TEXT NOT NULL,
+		expires_at TIMESTAMP NOT NULL
+	);
+
+	CREATE TABLE IF NOT EXISTS tags (
+		id SERIAL PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		color TEXT,
+		UNIQUE(name, user_id)
+	);
+
+	CREATE TABLE IF NOT EXISTS playlist_song_tags (
+		user_id TEXT NOT NULL,
+		playlist_id TEXT NOT NULL,
+		song_id TEXT NOT NULL,
+		tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
+		PRIMARY KEY (user_id, playlist_id, song_id, tag_id)
+	);`
+
+	_, err := db.Exec(schema)
+	if err != nil {
+		log.Fatalf("Failed to create database schema: %v", err)
+	}
 }
 
 // InsertSpotifyUser inserts or updates a Spotify user in the database

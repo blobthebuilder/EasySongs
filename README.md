@@ -13,6 +13,11 @@ go run ./cmd/server
 
 install postgressql
 
+CREATE USER root_user WITH PASSWORD 'your_secure_password';
+ALTER USER root_user WITH SUPERUSER;
+CREATE DATABASE easy_songs;
+GRANT ALL PRIVILEGES ON DATABASE easy_songs TO root_user;
+
 For mac:
 brew services start postgresql@16
 
