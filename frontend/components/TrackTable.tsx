@@ -10,6 +10,7 @@ import { removeTracksFromPlaylist } from "@/lib/api/removeTracksFromPlaylist";
 import { apiFetch } from "@/lib/api/fetch";
 import { useRouter } from "next/navigation";
 import { TagsMap } from "@/types/api/tags";
+import TagSelector from "./TagSelector";
 
 export default function TrackTable({
   tracks,
@@ -22,22 +23,25 @@ export default function TrackTable({
   tags: TagsMap;
   playlistId: string;
 }) {
+  const router = useRouter();
+
+  // selection variables
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartIdx, setDragStartIdx] = useState<number | null>(null);
   const [isSelecting, setIsSelecting] = useState(true);
 
   const allSelected = selectedIds.size === tracks.length && tracks.length > 0;
-
   const [initialSelectedIds, setInitialSelectedIds] = useState<Set<string>>(
     new Set(),
   );
 
+  // tag variables
+  const [isTaggingMenuOpen, setIsTaggingMenuOpen] = useState(false);
+  const [isTaggingLoading, setIsTaggingLoading] = useState(false);
+
   const [showModal, setShowModal] = useState(false);
-
   const [isCopying, setIsCopying] = useState(false);
-
-  const router = useRouter();
 
   const handleCopyTracks = async (targetId: string) => {
     const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
@@ -138,37 +142,31 @@ export default function TrackTable({
     }
   };
 
-  const [tagName, setTagName] = useState("");
-  const [isTagging, setIsTagging] = useState(false);
-  const [showTagInput, setShowTagInput] = useState(false);
-
-  const handleTagSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // Validation: Ensure we have a tag name and at least one song selected
+  const handleAddTag = async (tagName: string, color: string) => {
     if (!tagName.trim() || selectedIds.size === 0) return;
 
-    setIsTagging(true);
+    setIsTaggingLoading(true);
     try {
-      // Using your apiFetch helper
+      // Clean IDs (strip the -index suffix)
+      const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
+
       await apiFetch(`/api/playlists/${playlistId}/tags`, {
         method: "POST",
         body: JSON.stringify({
           tagName: tagName.trim(),
-          trackIDs: Array.from(selectedIds), // Matches your Go []string struct
+          color: color, // New color field!
+          trackIDs: cleanIds,
         }),
       });
 
-      // Reset UI on success
-      setTagName("");
-      setShowTagInput(false);
-
+      setIsTaggingMenuOpen(false);
+      // Optional: setSelectedIds(new Set()); // Uncomment if you want to clear selection after tagging
       router.refresh();
     } catch (error: any) {
       console.error("Tagging failed:", error.message);
       alert(`Error: ${error.message}`);
     } finally {
-      setIsTagging(false);
+      setIsTaggingLoading(false);
     }
   };
 
@@ -204,38 +202,24 @@ export default function TrackTable({
           </span>
 
           {/* TAGGING UI */}
-          {!showTagInput ? (
+          <div className="relative">
             <button
-              onClick={() => setShowTagInput(true)}
+              onClick={() => setIsTaggingMenuOpen(!isTaggingMenuOpen)}
               className="text-[10px] font-bold tracking-widest text-white bg-[#1DB954]/20 border border-[#1DB954]/40 hover:bg-[#1DB954]/30 uppercase px-4 py-1.5 rounded-full transition">
               Tag Songs
             </button>
-          ) : (
-            <form
-              onSubmit={handleTagSubmit}
-              className="flex items-center gap-2 animate-in slide-in-from-left-2">
-              <input
-                autoFocus
-                value={tagName}
-                onChange={(e) => setTagName(e.target.value)}
-                placeholder="Tag Name (e.g. Gym)"
-                className="bg-[#282828] border border-white/10 rounded-full px-3 py-1 text-[10px] text-white focus:outline-none focus:border-[#1DB954] w-32"
-              />
-              <button
-                type="submit"
-                disabled={isTagging}
-                className="text-[10px] font-bold text-[#1DB954] hover:text-white">
-                {isTagging ? "..." : "ADD"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowTagInput(false)}
-                className="text-[10px] font-bold text-zinc-500 hover:text-white">
-                ESC
-              </button>
-            </form>
-          )}
 
+            {isTaggingMenuOpen && (
+              <div className="absolute left-0 mt-2 z-60">
+                <TagSelector
+                  selectedCount={selectedIds.size}
+                  isTagging={isTaggingLoading}
+                  onCancel={() => setIsTaggingMenuOpen(false)}
+                  onAddTag={handleAddTag}
+                />
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setShowModal(true)}
             disabled={isCopying}

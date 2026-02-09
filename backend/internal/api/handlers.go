@@ -242,6 +242,7 @@ func getPlaylistDetailsHandler(w http.ResponseWriter, r *http.Request){
 		metadata, metaErr = spotify.GetPlaylistMetadata(token.AccessToken, playlistID, []string{"name", "images"})
 	}()
 
+    // get tags
     go func() {
         defer wg.Done()
         tags, tagsErr = db.GetPlaylistTagsMap(userID, playlistID)
@@ -402,7 +403,7 @@ func addTagToTracksHandler(w http.ResponseWriter, r *http.Request) {
         cleanIDs = append(cleanIDs, parts[0])
     }
 
-    err := db.AddTagsToSongsBatch(userID, playlistID, cleanIDs, body.TagName)
+    err := db.AddTagsToSongsBatch(userID, playlistID, cleanIDs, body.TagName, body.TagColor)
     if err != nil {
         http.Error(w, "Server error", http.StatusInternalServerError)
         return

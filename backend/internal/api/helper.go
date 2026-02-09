@@ -35,6 +35,7 @@ type CopyTracksRequest struct {
 type TagBatchRequest struct {
     TagName  string   `json:"tagName"`
     TrackIDs []string `json:"trackIDs"`
+    TagColor string `json:"color"`
 }
 
 type PlaylistDetailsResponse struct {

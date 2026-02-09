@@ -39,22 +39,30 @@ export default function TrackRow({
           className={`font-medium truncate max-w-md ${isSelected ? "text-[#1db954]" : "text-white"}`}>
           {track.name}
         </div>
-        <div className="text-sm text-[#b3b3b3] group-hover:text-white truncate max-w-md">
+        <div className="text-sm text-[#b3b3b3] group-hover:text-white truncate max-w-md mb-1">
           {track.artists.map((a) => a.name).join(", ")}
         </div>
+
+        {/* TAGS USING DYNAMIC COLOR WITH FALLBACK */}
         {trackTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {trackTags.map((tag) => (
-              <span
-                key={tag.id}
-                style={{
-                  borderColor: tag.color || "#3e3e3e",
-                  color: tag.color || "#b3b3b3",
-                }}
-                className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-sm border bg-black/20">
-                {tag.name}
-              </span>
-            ))}
+            {trackTags.map((tag) => {
+              // Define a fallback color if tag.color is null/undefined
+              const displayColor = tag.color || "#b3b3b3";
+
+              return (
+                <span
+                  key={tag.id}
+                  style={{
+                    borderColor: `${displayColor}66`, // 40% opacity border
+                    color: displayColor, // Solid text color
+                    backgroundColor: `${displayColor}15`, // ~8% opacity background
+                  }}
+                  className="text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border transition-all">
+                  {tag.name}
+                </span>
+              );
+            })}
           </div>
         )}
       </td>

@@ -130,21 +130,21 @@ func UpdateSpotifyTokens(userID, accessToken, refreshToken string, expiresAt tim
     return err
 }
 
-func AddTagsToSongsBatch(userID string, playlistID string, songIDs []string, tagName string) error {
+func AddTagsToSongsBatch(userID string, playlistID string, songIDs []string, tagName string, tagColor string) error {
     tx, err := db.Begin()
     if err != nil {
         return err
     }
     defer tx.Rollback()
-
     // 1. Get or Create the Tag ID
     var tagID int
     err = tx.QueryRow(`
-        INSERT INTO tags (name, user_id)
-        VALUES ($1, $2)
-        ON CONFLICT (name, user_id) DO UPDATE SET name = EXCLUDED.name
+        INSERT INTO tags (name, user_id, color)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (name, user_id) 
+        DO UPDATE SET color = EXCLUDED.color 
         RETURNING id
-    `, tagName, userID).Scan(&tagID)
+    `, tagName, userID, tagColor).Scan(&tagID)
     if err != nil {
         return err
     }
