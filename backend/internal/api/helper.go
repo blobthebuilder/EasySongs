@@ -45,6 +45,11 @@ type PlaylistDetailsResponse struct {
 	Tags map[string][]db.TagInfo  `json:"tags"`
 }
 
+type LikedSongsDetailsResponse struct {
+    Tracks []spotify.SpotifyTrack `json:"tracks"` 
+    Tags map[string][]db.TagInfo  `json:"tags"`
+}
+
 func normalizeTrackName(trackName string) string {
 	trackName = strings.ToLower(trackName)
 	trackName = strings.TrimSpace(trackName)

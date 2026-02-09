@@ -1,3 +1,5 @@
+import { TagsMap } from "./tags";
+
 export type ApiArtist = {
   name: string;
 };
@@ -7,6 +9,11 @@ export type ApiTrack = {
   name: string;
   artists: ApiArtist[];
   album: Album;
+};
+
+export type TrackDetails = {
+  tracks: ApiTrack[];
+  tags: TagsMap;
 };
 
 export type Album = {

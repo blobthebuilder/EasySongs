@@ -30,6 +30,7 @@ func NewRouter() http.Handler {
         r.Use(middleware.RequireSpotifyToken)
 
         r.Get("/liked", getLikedSongsHandler)  // GET liked songs
+        r.Get("/liked/details", getLikedSongsDetailsHandler)  // GET liked songs
 
         r.Route("/playlists", func(r chi.Router) {
             r.Get("/", getPlaylistsHandler) // GET all playlists

@@ -40,7 +40,8 @@ export default function TrackTable({
   const [isTaggingMenuOpen, setIsTaggingMenuOpen] = useState(false);
   const [isTaggingLoading, setIsTaggingLoading] = useState(false);
 
-  const [showModal, setShowModal] = useState(false);
+  // copy to another playlist variables
+  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopyTracks = async (targetId: string) => {
@@ -49,7 +50,7 @@ export default function TrackTable({
     setIsCopying(true); // Start the spinner
     try {
       await addTracksToPlaylist(targetId, cleanIds);
-      setShowModal(false);
+      setShowPlaylistModal(false);
       setSelectedIds(new Set());
       alert("Songs copied successfully!");
     } catch (err) {
@@ -221,7 +222,7 @@ export default function TrackTable({
             )}
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setShowPlaylistModal(true)}
             disabled={isCopying}
             className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap">
             {isCopying ? "Copying..." : "Add to Playlist"}
@@ -263,10 +264,10 @@ export default function TrackTable({
         </tbody>
       </table>
 
-      {showModal && (
+      {showPlaylistModal && (
         <AddToPlaylistModal
           playlists={userPlaylists}
-          onClose={() => !isCopying && setShowModal(false)} // Prevent closing while busy
+          onClose={() => !isCopying && setShowPlaylistModal(false)} // Prevent closing while busy
           onSelect={handleCopyTracks} // This now triggers the API call
         />
       )}

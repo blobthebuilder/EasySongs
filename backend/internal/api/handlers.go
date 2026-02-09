@@ -98,6 +98,54 @@ func getLikedSongsHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(songs)
 }
 
+func getLikedSongsDetailsHandler(w http.ResponseWriter, r *http.Request) {
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    var (
+		songs   []spotify.SpotifyTrack 
+        tags     map[string][]db.TagInfo
+	    songsErr error
+        tagsErr  error
+		wg       sync.WaitGroup
+	)
+
+    wg.Add(2)
+
+    go func() {
+		defer wg.Done()
+		songs, songsErr = spotify.GetSavedSongs(token.AccessToken)
+	}()
+
+    // get tags
+    go func() {
+        defer wg.Done()
+        tags, tagsErr = db.GetPlaylistTagsMap(userID, "liked-songs")
+    }()
+
+    wg.Wait()
+
+    if songsErr != nil || tagsErr != nil{
+        http.Error(w, "Failed to fetch liked songs data", http.StatusInternalServerError)
+		return
+    }
+
+	
+
+    response := LikedSongsDetailsResponse{
+        Tracks: songs,
+        Tags: tags,
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
 func removeDuplicatesHandler(w http.ResponseWriter, r *http.Request){
     var req RemoveDuplicatesPlaylistRequest
     err := json.NewDecoder(r.Body).Decode(&req)

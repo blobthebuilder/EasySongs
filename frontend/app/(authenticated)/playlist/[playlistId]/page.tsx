@@ -5,12 +5,26 @@ import BackButton from "@/components/BackButton";
 import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
 import RemoveDuplicatesButton from "@/components/RemoveDuplicatesButton";
 import { fetchPlaylists } from "@/lib/api/playlists";
+import { Metadata } from "next";
 
+// disable caching, forcing refetch every load
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ playlistId: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { playlistId } = await params;
+
+  const data = await fetchPlaylistDetails(playlistId).catch(() => null);
+
+  return {
+    title: data ? `${data.name} | EasySongs` : "Playlist | EasySongs",
+  };
+}
 
 export default async function PlaylistPage({ params }: PageProps) {
   const { playlistId } = await params;
