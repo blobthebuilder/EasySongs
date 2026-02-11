@@ -52,7 +52,24 @@ export default function TrackTable({
   );
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
-    setMenuConfig({ x: e.clientX, y: e.clientY });
+
+    const menuWidth = 200; // Approximate width of your menu
+    const menuHeight = 250; // Approximate height of your menu
+
+    let posX = e.clientX;
+    let posY = e.clientY;
+
+    // If clicking near the right edge, shift menu to the left
+    if (posX + menuWidth > window.innerWidth) {
+      posX = posX - menuWidth;
+    }
+
+    // If clicking near the bottom edge, shift menu upwards
+    if (posY + menuHeight > window.innerHeight) {
+      posY = posY - menuHeight;
+    }
+
+    setMenuConfig({ x: posX, y: posY });
   };
 
   const handleCopyTracks = async (targetId: string) => {
@@ -207,7 +224,7 @@ export default function TrackTable({
   return (
     <div
       className="flex flex-col gap-4"
-      onContextMenu={handleContextMenu}>
+      onContextMenu={(e) => handleContextMenu(e)}>
       {menuConfig && (
         <ContextMenu
           x={menuConfig.x}
