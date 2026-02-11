@@ -11,6 +11,8 @@ import { apiFetch } from "@/lib/api/fetch";
 import { useRouter } from "next/navigation";
 import { TagsMap } from "@/types/api/tags";
 import TagSelector from "./TagSelector";
+import ContextMenu from "./contextMenu";
+import { removeTagsFromTracks } from "@/lib/api/removeTagsFromTracks";
 
 export default function TrackTable({
   tracks,
@@ -44,6 +46,15 @@ export default function TrackTable({
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
 
+  // right click menu
+  const [menuConfig, setMenuConfig] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuConfig({ x: e.clientX, y: e.clientY });
+  };
+
   const handleCopyTracks = async (targetId: string) => {
     const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
 
@@ -69,7 +80,9 @@ export default function TrackTable({
     }
   };
 
-  const handleMouseDown = (idx: number, id: string) => {
+  const handleMouseDown = (e: React.MouseEvent, idx: number, id: string) => {
+    if ((e.button !== 0 || e.ctrlKey) && selectedIds.has(id)) return;
+
     setIsDragging(true);
     setDragStartIdx(idx);
     const adding = !selectedIds.has(id);
@@ -126,15 +139,11 @@ export default function TrackTable({
 
     setIsCopying(true);
     try {
-      // 4. Call your new DELETE endpoint
       await removeTracksFromPlaylist(targetId, cleanIds);
-
-      // 5. Update UI: Clear selection
       setSelectedIds(new Set());
 
       // 6. Refresh the view so the songs disappear
-      // If you're using Next.js App Router, this is the cleanest way:
-      window.location.reload();
+      router.refresh();
     } catch (err) {
       console.error("Delete failed:", err);
       alert("Failed to remove songs. Please try again.");
@@ -161,13 +170,31 @@ export default function TrackTable({
       });
 
       setIsTaggingMenuOpen(false);
-      // Optional: setSelectedIds(new Set()); // Uncomment if you want to clear selection after tagging
       router.refresh();
     } catch (error: any) {
       console.error("Tagging failed:", error.message);
       alert(`Error: ${error.message}`);
     } finally {
       setIsTaggingLoading(false);
+    }
+  };
+
+  const handleRemoveTags = async (
+    trackIds: string[],
+    tags: "all" | string[],
+  ) => {
+    try {
+      // Determine what tag IDs to send to the backend
+      // If 'all', we send an empty array
+      const tagIdsToRemove = tags === "all" ? [] : tags;
+
+      await removeTagsFromTracks(playlistId, trackIds, tagIdsToRemove);
+
+      setMenuConfig(null);
+      router.refresh();
+      alert("Tags removed successfully!");
+    } catch (error) {
+      console.error("Failed to remove tags:", error);
     }
   };
 
@@ -178,7 +205,20 @@ export default function TrackTable({
   }, []);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div
+      className="flex flex-col gap-4"
+      onContextMenu={handleContextMenu}>
+      {menuConfig && (
+        <ContextMenu
+          x={menuConfig.x}
+          y={menuConfig.y}
+          onClose={() => setMenuConfig(null)}
+          toggleSelect={toggleSelectAll}
+          allSelected={allSelected}
+          handleRemoveTags={handleRemoveTags}
+          selectedIds={selectedIds}
+        />
+      )}
       {/* 1. SELECTION CONTROLS */}
       <div className="flex items-center gap-4 py-2 min-h-10">
         {" "}
@@ -255,7 +295,7 @@ export default function TrackTable({
                 track={track}
                 index={i}
                 isSelected={selectedIds.has(uniqueId)}
-                onMouseDown={() => handleMouseDown(i, uniqueId)}
+                onMouseDown={(e) => handleMouseDown(e, i, uniqueId)}
                 onMouseEnter={() => isDragging && updateRange(i)}
                 trackTags={tags?.[track.id] || []}
               />

@@ -40,7 +40,9 @@ func NewRouter() http.Handler {
                 r.Get("/details", getPlaylistDetailsHandler) // playlist details
                 r.Post("/copy-to-liked", copyToLikedHandler) // copy playlist to liked songs
                 r.Post("/remove-duplicates", removeDuplicatesHandler) // remove dupes
+                
                 r.Post("/tags", addTagToTracksHandler) // add tags to tracks in playlist
+                r.Delete("/tags", removeTagsFromTracksHandler)
 
                 // Track-specific actions within a playlist
                 r.Route("/tracks", func(r chi.Router) {

@@ -459,3 +459,44 @@ func addTagToTracksHandler(w http.ResponseWriter, r *http.Request) {
 
     w.WriteHeader(http.StatusNoContent)
 }
+
+func removeTagsFromTracksHandler(w http.ResponseWriter, r *http.Request) {
+    // 1. Get IDs from context/URL
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    playlistID := chi.URLParam(r, "playlistID")
+
+    // 2. Parse request body
+    var body RemoveTagsRequest
+
+    if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    if len(body.TrackIDs) == 0 {
+        http.Error(w, "At least one TrackID required", http.StatusBadRequest)
+        return
+    }
+
+    // 3. Clean the IDs (removing the -index suffix from the frontend)
+    cleanTrackIDs := make([]string, 0, len(body.TrackIDs))
+    for _, id := range body.TrackIDs {
+        parts := strings.Split(id, "-")
+        cleanTrackIDs = append(cleanTrackIDs, parts[0])
+    }
+
+    // If TagIDs is empty, the function deletes all tags for these tracks
+    err := db.RemoveTagsFromSongsBatch(userID, playlistID, cleanTrackIDs, body.TagIDs)
+    if err != nil {
+        log.Printf("Error removing tags: %v", err)
+        http.Error(w, "Server error", http.StatusInternalServerError)
+        return
+    }
+
+    w.WriteHeader(http.StatusNoContent)
+}

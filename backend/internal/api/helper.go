@@ -50,6 +50,11 @@ type LikedSongsDetailsResponse struct {
     Tags map[string][]db.TagInfo  `json:"tags"`
 }
 
+type RemoveTagsRequest struct {
+	TrackIDs []string `json:"trackIds"`
+	TagIDs   []int `json:"tagIds"` // If empty, it means "Remove All"
+}
+
 func normalizeTrackName(trackName string) string {
 	trackName = strings.ToLower(trackName)
 	trackName = strings.TrimSpace(trackName)

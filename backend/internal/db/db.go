@@ -195,3 +195,36 @@ func GetPlaylistTagsMap(userID string, playlistID string) (map[string][]TagInfo,
 
 	return tagsMap, nil
 }
+
+func RemoveTagsFromSongsBatch(userID string, playlistID string, songIDs []string, tagIDs []int) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    if len(tagIDs) == 0 {
+        // CASE: Remove ALL tags from the selected songs in this playlist
+        _, err = tx.Exec(`
+            DELETE FROM playlist_song_tags 
+            WHERE user_id = $1 
+              AND playlist_id = $2 
+              AND song_id = ANY($3)
+        `, userID, playlistID, pq.Array(songIDs))
+    } else {
+        // CASE: Remove ONLY specific tags from the selected songs
+        _, err = tx.Exec(`
+            DELETE FROM playlist_song_tags 
+            WHERE user_id = $1 
+              AND playlist_id = $2 
+              AND song_id = ANY($3)
+              AND tag_id = ANY($4)
+        `, userID, playlistID, pq.Array(songIDs), pq.Array(tagIDs))
+    }
+
+    if err != nil {
+        return err
+    }
+
+    return tx.Commit()
+}

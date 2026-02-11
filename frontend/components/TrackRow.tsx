@@ -5,7 +5,7 @@ interface TrackRowProps {
   track: ApiTrack;
   index: number;
   isSelected: boolean;
-  onMouseDown: () => void;
+  onMouseDown: (e: any) => void;
   onMouseEnter: () => void;
   trackTags: Tag[];
 }
