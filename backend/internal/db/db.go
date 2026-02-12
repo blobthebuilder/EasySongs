@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -57,21 +58,37 @@ func createSchema() {
 		expires_at TIMESTAMP NOT NULL
 	);
 
+    CREATE TABLE IF NOT EXISTS playlists (
+        spotify_playlist_id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES spotify_users(spotify_user_id) ON DELETE CASCADE,
+        last_synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
 	CREATE TABLE IF NOT EXISTS tags (
-		id SERIAL PRIMARY KEY,
-		user_id TEXT NOT NULL,
+        id SERIAL PRIMARY KEY,
+		user_id TEXT REFERENCES spotify_users(spotify_user_id) ON DELETE CASCADE,
 		name TEXT NOT NULL,
 		color TEXT,
 		UNIQUE(name, user_id)
 	);
 
 	CREATE TABLE IF NOT EXISTS playlist_song_tags (
-		user_id TEXT NOT NULL,
-		playlist_id TEXT NOT NULL,
+		user_id TEXT REFERENCES spotify_users(spotify_user_id) ON DELETE CASCADE,
+		playlist_id TEXT REFERENCES playlists(spotify_playlist_id) ON DELETE CASCADE,
 		song_id TEXT NOT NULL,
 		tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
 		PRIMARY KEY (user_id, playlist_id, song_id, tag_id)
-	);`
+	);
+    
+
+    CREATE TABLE IF NOT EXISTS playlist_snapshots (
+        id SERIAL PRIMARY KEY,
+        playlist_id TEXT REFERENCES playlists(spotify_playlist_id) ON DELETE CASCADE,
+        -- Stores an array of Spotify URIs: ["spotify:track:123", "spotify:track:456"]
+        snapshot_data JSONB NOT NULL, 
+        snapshot_type TEXT DEFAULT 'diff',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );`
 
 	_, err := db.Exec(schema)
 	if err != nil {
@@ -227,4 +244,53 @@ func RemoveTagsFromSongsBatch(userID string, playlistID string, songIDs []string
     }
 
     return tx.Commit()
+}
+
+func GetRecentHistory(playlistID string) ([]Snapshot, error){
+    query := `
+        SELECT id, playlist_id, snapshot_type, snapshot_data, created_at 
+        FROM playlist_snapshots 
+        WHERE playlist_id = $1 
+        ORDER BY created_at DESC LIMIT 11`
+    
+    rows, err := db.Query(query, playlistID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var snapshots []Snapshot
+    for rows.Next() {
+        var s Snapshot
+        if err := rows.Scan(&s.ID, &s.PlaylistID, &s.Type, &s.SnapshotData, &s.CreatedAt); err != nil {
+            return nil, err
+        }
+        snapshots = append(snapshots, s)
+    }
+    return snapshots, nil
+}
+
+func SaveSnapshot(playlistID string, data interface{}, sType SnapshotType) error {
+    jsonData, err := json.Marshal(data)
+    if err != nil {
+        return err
+    }
+
+    query := `
+        INSERT INTO playlist_snapshots (playlist_id, snapshot_data, snapshot_type)
+        VALUES ($1, $2, $3)`
+    
+    _, err = db.Exec(query, playlistID, jsonData, string(sType))
+    return err
+}
+
+func EnsurePlaylistExists(playlistID string, userID string) error {
+    query := `
+        INSERT INTO playlists (spotify_playlist_id, user_id, last_synced_at)
+        VALUES ($1, $2, NOW())
+        ON CONFLICT (spotify_playlist_id) 
+        DO UPDATE SET last_synced_at = NOW();`
+    
+    _, err := db.Exec(query, playlistID, userID)
+    return err
 }

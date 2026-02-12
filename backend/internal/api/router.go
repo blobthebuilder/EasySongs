@@ -40,6 +40,8 @@ func NewRouter() http.Handler {
                 r.Get("/details", getPlaylistDetailsHandler) // playlist details
                 r.Post("/copy-to-liked", copyToLikedHandler) // copy playlist to liked songs
                 r.Post("/remove-duplicates", removeDuplicatesHandler) // remove dupes
+
+                r.Post("/version", saveVersionHandler) // save version 
                 
                 r.Post("/tags", addTagToTracksHandler) // add tags to tracks in playlist
                 r.Delete("/tags", removeTagsFromTracksHandler)
@@ -50,6 +52,8 @@ func NewRouter() http.Handler {
                     r.Post("/", addTracksToPlaylistHandler) // add tracks to playlist
                     r.Delete("/", removeTracksHandler) // delete tracks from playlist
                 })
+
+                
             })
         })
     })

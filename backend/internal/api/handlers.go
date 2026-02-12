@@ -41,7 +41,7 @@ func getPlaylistTracksHandler(w http.ResponseWriter, r *http.Request) {
     
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
 
-    tracks, err :=  spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
+    tracks, err := spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
     if err != nil {
         http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
         return
@@ -499,4 +499,68 @@ func removeTagsFromTracksHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     w.WriteHeader(http.StatusNoContent)
+}
+
+func saveVersionHandler(w http.ResponseWriter, r *http.Request) {
+    playlistID := chi.URLParam(r, "playlistID")
+    token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
+    userID, ok := r.Context().Value(middleware.UserIDKey).(string)
+    if !ok {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    currentTracks, tracksErr := spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
+    if tracksErr != nil {
+        http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
+        return
+    }
+
+    err := db.EnsurePlaylistExists(playlistID, userID)
+    if err != nil{
+        http.Error(w, "Failed to get playlist info", http.StatusInternalServerError)
+    }
+
+    history, _ := db.GetRecentHistory(playlistID)
+    if len(history) == 0{
+        db.SaveSnapshot(playlistID, currentTracks, "full")
+        w.WriteHeader(http.StatusCreated) // 201 Created
+        json.NewEncoder(w).Encode(map[string]string{
+            "message": "Initial snapshot created!",
+        })
+        return
+    }
+
+    diffCount := 0
+
+    // Logic to determine if we need a new Full Snapshot
+    for _, snap := range history {
+        if snap.Type == "full" {
+            break
+        }
+        diffCount++
+    }
+
+    if diffCount >= 9 || len(history) == 0 {
+        // Save FULL version
+        db.SaveSnapshot(playlistID, currentTracks, "full")
+    } else {
+        // Calculate and save DIFF
+        // We need the "current state" of the playlist to diff against
+        // which means Reconstructing the playlist from the last Full + intervening Diffs
+        currentIDs := make([]string, len(currentTracks))
+        for i, track := range currentTracks {
+            // Use .ID or .URI depending on how you want to track them
+            currentIDs[i] = string(track.ID) 
+        }
+        currentState := reconstructPlaylist(history) 
+        diff := calculateDiff(currentState, currentIDs)
+        
+        db.SaveSnapshot(playlistID, diff, "diff")
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{
+        "message": "Saved",
+    })
 }

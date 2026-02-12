@@ -6,6 +6,7 @@ import AddToLikedButton from "@/components/AddPlaylistToLikedButton";
 import RemoveDuplicatesButton from "@/components/RemoveDuplicatesButton";
 import { fetchPlaylists } from "@/lib/api/playlists";
 import { Metadata } from "next";
+import SaveVersionButton from "@/components/SaveVersionButton";
 
 // disable caching, forcing refetch every load
 export const dynamic = "force-dynamic";
@@ -54,6 +55,7 @@ export default async function PlaylistPage({ params }: PageProps) {
           <AddToLikedButton playlistId={playlistId} />
         </div>
         <RemoveDuplicatesButton playlistId={playlistId} />
+        <SaveVersionButton playlistId={playlistId} />
       </div>
 
       {/* Reusable Track List with Selection Logic */}
