@@ -107,91 +107,139 @@ func executeSpotifyRequest(method, url string, body []byte, token string) error 
     return nil
 }
 
-func calculateDiff(oldTracks, newTracks []string) db.PlaylistDiff {
-	oldMap := make(map[string]bool)
-	newMap := make(map[string]bool)
-	diff := db.PlaylistDiff{
-		Added:   []string{},
-		Removed: []string{},
-	}
+func calculateDiff(oldState map[string][]int, currentState map[string][]int) db.PlaylistDiff {
+    diff := db.PlaylistDiff{
+        SongsAdded:   []string{},
+        SongsRemoved: []string{},
+        TagsAdded:    make(map[string][]int),
+        TagsRemoved:  make(map[string][]int),
+    }
 
-	for _, id := range oldTracks {
-		oldMap[id] = true
-	}
-	for _, id := range newTracks {
-		newMap[id] = true
-	}
+    // 1. Check for Additions and Tag Changes
+    for songID, currentTags := range currentState {
+        oldTags, exists := oldState[songID]
+        
+        if !exists {
+            // Song is entirely new to the snapshot system
+            diff.SongsAdded = append(diff.SongsAdded, songID)
+            if len(currentTags) > 0 {
+                diff.TagsAdded[songID] = currentTags
+            }
+        } else {
+            // Song exists in both, check if tags changed
+            added, removed := compareTags(oldTags, currentTags)
+            if len(added) > 0 {
+                diff.TagsAdded[songID] = added
+            }
+            if len(removed) > 0 {
+                diff.TagsRemoved[songID] = removed
+            }
+        }
+    }
 
-	// Added: Exists in new, but not in old
-	for _, id := range newTracks {
-		if !oldMap[id] {
-			diff.Added = append(diff.Added, id)
-		}
-	}
+    // 2. Check for Removals
+    for songID := range oldState {
+        if _, exists := currentState[songID]; !exists {
+            diff.SongsRemoved = append(diff.SongsRemoved, songID)
+        }
+    }
 
-	// Removed: Exists in old, but not in new
-	for _, id := range oldTracks {
-		if !newMap[id] {
-			diff.Removed = append(diff.Removed, id)
-		}
-	}
-
-	return diff
+    return diff
 }
 
-func reconstructPlaylist(history []db.Snapshot) []string {
-	if len(history) == 0 {
-		return []string{}
-	}
+// Helper to find differences between two slices of Tag IDs
+func compareTags(oldTags, newTags []int) (added, removed []int) {
+    oldMap := make(map[int]bool)
+    newMap := make(map[int]bool)
 
-	// 1. Find the most recent 'full' snapshot (the anchor)
-	var currentTracks []string
-	anchorIndex := -1
+    for _, id := range oldTags { oldMap[id] = true }
+    for _, id := range newTags { newMap[id] = true }
 
-	// History is ordered newest to oldest, so we find the first 'full' one
-	for i, snap := range history {
-		if snap.Type == db.SnapshotFull {
-			json.Unmarshal(snap.SnapshotData, &currentTracks)
-			anchorIndex = i
-			break
-		}
-	}
+    for id := range newMap {
+        if !oldMap[id] { added = append(added, id) }
+    }
+    for id := range oldMap {
+        if !newMap[id] { removed = append(removed, id) }
+    }
+    return
+}
 
-	// If no full snapshot found (shouldn't happen with proper indexing), return empty
-	if anchorIndex == -1 {
-		return []string{}
-	}
+func reconstructPlaylist(history []db.Snapshot) map[string][]int {
+    currentState := make(map[string][]int)
+    if len(history) == 0 {
+        return currentState
+    }
 
-	// 2. Apply all 'diffs' that happened AFTER that anchor
-	// Since history is [newest...anchor...oldest], we iterate BACKWARDS from the anchor
-	for i := anchorIndex - 1; i >= 0; i-- {
+    anchorIndex := -1
+    // Find the latest 'full' snapshot
+    for i, snap := range history {
+        if snap.Type == "full" {
+            // Unmarshal the raw bytes into the map
+            if err := json.Unmarshal(snap.SnapshotData, &currentState); err != nil {
+                return currentState
+            }
+            anchorIndex = i
+            break
+        }
+    }
+
+    if anchorIndex == -1 {
+        return currentState
+    }
+
+    // Apply diffs forward in time
+    for i := anchorIndex - 1; i >= 0; i-- {
 		var diff db.PlaylistDiff
 		json.Unmarshal(history[i].SnapshotData, &diff)
 
-		// Apply Removals first
-		if len(diff.Removed) > 0 {
-			currentTracks = filterRemoved(currentTracks, diff.Removed)
+		// 1. Handle Song Membership
+		for _, id := range diff.SongsRemoved {
+			delete(currentState, id)
+		}
+		for _, id := range diff.SongsAdded {
+			if _, exists := currentState[id]; !exists {
+				currentState[id] = []int{} // Initialize empty tag list for new song
+			}
 		}
 
-		// Apply Additions
-		currentTracks = append(currentTracks, diff.Added...)
+		// 2. Handle Tag Changes
+		for songID, tagIDs := range diff.TagsRemoved {
+			currentState[songID] = filterTags(currentState[songID], tagIDs)
+		}
+		for songID, tagIDs := range diff.TagsAdded {
+			currentState[songID] = append(currentState[songID], tagIDs...)
+			currentState[songID] = uniqueInts(currentState[songID])
+		}
 	}
 
-	return currentTracks
+    return currentState
 }
 
-// Helper to filter out removed tracks
-func filterRemoved(tracks []string, toRemove []string) []string {
-	removeMap := make(map[string]bool)
-	for _, id := range toRemove {
-		removeMap[id] = true
-	}
+// Helper: Removes specific tags from a song's tag list
+func filterTags(current []int, toRemove []int) []int {
+    removeMap := make(map[int]bool)
+    for _, id := range toRemove {
+        removeMap[id] = true
+    }
 
-	result := []string{}
-	for _, id := range tracks {
-		if !removeMap[id] {
-			result = append(result, id)
-		}
-	}
-	return result
+    result := []int{}
+    for _, id := range current {
+        if !removeMap[id] {
+            result = append(result, id)
+        }
+    }
+    return result
+}
+
+// Helper: Ensures no duplicate tag IDs in a song
+func uniqueInts(input []int) []int {
+    u := make([]int, 0, len(input))
+    m := make(map[int]bool)
+    for _, val := range input {
+        if !m[val] {
+            m[val] = true
+            u = append(u, val)
+        }
+    }
+    return u
 }

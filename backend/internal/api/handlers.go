@@ -502,6 +502,14 @@ func removeTagsFromTracksHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func saveVersionHandler(w http.ResponseWriter, r *http.Request) {
+    var req struct{
+        SnapshotName string `json:"snapshot_name"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
     playlistID := chi.URLParam(r, "playlistID")
     token := r.Context().Value(middleware.SpotifyTokenKey).(spotify.SpotifyToken)
     userID, ok := r.Context().Value(middleware.UserIDKey).(string)
@@ -510,20 +518,48 @@ func saveVersionHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    // create map of tracks to tag ids
     currentTracks, tracksErr := spotify.GetTracksFromPlaylist(token.AccessToken, playlistID)
     if tracksErr != nil {
         http.Error(w, "Failed to get tracks", http.StatusInternalServerError)
         return
     }
 
-    err := db.EnsurePlaylistExists(playlistID, userID)
-    if err != nil{
-        http.Error(w, "Failed to get playlist info", http.StatusInternalServerError)
+    tagsMap, err := db.GetPlaylistTagsMap(userID, playlistID)
+    if err != nil {
+        http.Error(w, "Failed to fetch tags from DB", http.StatusInternalServerError)
+        return
     }
 
-    history, _ := db.GetRecentHistory(playlistID)
+    currentTagState := make(map[string][]int)
+    for songID, tags := range tagsMap {
+        ids := make([]int, len(tags))
+        for i, t := range tags {
+            ids[i] = t.ID
+        }
+        currentTagState[songID] = ids
+    }
+
+    for _, track := range currentTracks {
+        if _, exists := currentTagState[track.ID]; !exists {
+            currentTagState[track.ID] = []int{}
+        }
+    }
+
+    err = db.EnsurePlaylistExists(playlistID)
+    if err != nil{
+        http.Error(w, "Failed to get playlist info", http.StatusInternalServerError)
+        return
+    }
+
+    history, err := db.GetRecentHistory(playlistID)
+    if err != nil{
+        http.Error(w, "Failed to get version history", http.StatusInternalServerError)
+        return
+    }
+
     if len(history) == 0{
-        db.SaveSnapshot(playlistID, currentTracks, "full")
+        db.SaveSnapshot(playlistID, currentTagState, "full", req.SnapshotName)
         w.WriteHeader(http.StatusCreated) // 201 Created
         json.NewEncoder(w).Encode(map[string]string{
             "message": "Initial snapshot created!",
@@ -543,7 +579,7 @@ func saveVersionHandler(w http.ResponseWriter, r *http.Request) {
 
     if diffCount >= 9 || len(history) == 0 {
         // Save FULL version
-        db.SaveSnapshot(playlistID, currentTracks, "full")
+        db.SaveSnapshot(playlistID, currentTagState, "full", req.SnapshotName)
     } else {
         // Calculate and save DIFF
         // We need the "current state" of the playlist to diff against
@@ -553,10 +589,19 @@ func saveVersionHandler(w http.ResponseWriter, r *http.Request) {
             // Use .ID or .URI depending on how you want to track them
             currentIDs[i] = string(track.ID) 
         }
-        currentState := reconstructPlaylist(history) 
-        diff := calculateDiff(currentState, currentIDs)
+        prevState := reconstructPlaylist(history) 
+        diff := calculateDiff(prevState, currentTagState)
         
-        db.SaveSnapshot(playlistID, diff, "diff")
+        if diff.IsEmpty() {
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusOK) // 200 OK (Nothing to do)
+            json.NewEncoder(w).Encode(map[string]string{
+                "message": "No changes detected since the last version.",
+            })
+            return
+        }
+
+        db.SaveSnapshot(playlistID, diff, "diff", req.SnapshotName)
     }
 
     w.Header().Set("Content-Type", "application/json")
