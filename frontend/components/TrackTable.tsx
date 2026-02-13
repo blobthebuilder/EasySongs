@@ -16,6 +16,7 @@ import { removeTagsFromTracks } from "@/lib/api/removeTagsFromTracks";
 import RemoveTagsModal from "./RemoveTagsModal";
 import { Tag } from "@/types/api/tags";
 import { useMemo } from "react";
+import { useRef } from "react";
 
 export default function TrackTable({
   tracks,
@@ -48,6 +49,7 @@ export default function TrackTable({
     "none" | "addTag" | "removeTag" | "removeSongs"
   >("none");
   const [isRemoving, setIsRemoving] = useState(false);
+  const taggingMenuRef = useRef<HTMLDivElement>(null);
 
   // copy to another playlist variables
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
@@ -251,10 +253,28 @@ export default function TrackTable({
     return Array.from(uniqueTags.values());
   }, [selectedIds, tags]);
 
+  // 1. Handle clicking outside the Tagging Menu
   useEffect(() => {
-    const stop = () => setIsDragging(false);
-    window.addEventListener("mouseup", stop);
-    return () => window.removeEventListener("mouseup", stop);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isTaggingMenuOpen &&
+        taggingMenuRef.current &&
+        !taggingMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsTaggingMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isTaggingMenuOpen]); // Dependency ensures it checks the current state
+
+  // 2. Handle global mouse up to stop dragging
+  useEffect(() => {
+    const stopDragging = () => setIsDragging(false);
+
+    window.addEventListener("mouseup", stopDragging);
+    return () => window.removeEventListener("mouseup", stopDragging);
   }, []);
 
   return (
@@ -299,10 +319,13 @@ export default function TrackTable({
           </span>
 
           {/* TAGGING UI */}
-          <div className="relative">
+          <div
+            className="relative"
+            ref={taggingMenuRef}>
             <button
+              disabled={selectedIds.size === 0}
               onClick={() => setIsTaggingMenuOpen(!isTaggingMenuOpen)}
-              className="text-[10px] font-bold tracking-widest text-white bg-[#1DB954]/20 border border-[#1DB954]/40 hover:bg-[#1DB954]/30 uppercase px-4 py-1.5 rounded-full transition">
+              className="text-[10px] font-bold tracking-widest text-white bg-[#1DB954]/20 border border-[#1DB954]/40 hover:bg-[#1DB954]/30 uppercase px-4 py-1.5 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/50">
               Edit Tags
             </button>
 
@@ -350,15 +373,15 @@ export default function TrackTable({
           )}
           <button
             onClick={() => setShowPlaylistModal(true)}
-            disabled={isCopying}
-            className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap">
+            disabled={isCopying || selectedIds.size === 0} // Disabled if busy OR nothing selected
+            className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed">
             {isCopying ? "Copying..." : "Add to Playlist"}
           </button>
 
           <button
             onClick={handleRemoveTracks}
-            disabled={isCopying}
-            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-red-500 uppercase px-4 py-1.5 border border-zinc-800 hover:border-red-500/50 rounded-full transition">
+            disabled={isCopying || selectedIds.size === 0} // Same logic here
+            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-red-500 uppercase px-4 py-1.5 border border-zinc-800 hover:border-red-500/50 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed disabled:border-zinc-800">
             {isCopying ? "Removing..." : "Remove from Playlist"}
           </button>
         </div>
