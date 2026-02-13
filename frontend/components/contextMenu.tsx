@@ -20,8 +20,7 @@ interface ContextMenuProps {
   ) => Promise<void>;
   handleAddTag: (name: string, color: string) => Promise<void>;
   selectedIds: Set<string>;
-  isRemoving: boolean;
-  isTaggingLoading: boolean;
+  isBusy: boolean;
 }
 
 export default function ContextMenu({
@@ -34,8 +33,7 @@ export default function ContextMenu({
   handleRemoveTags,
   handleAddTag,
   selectedIds,
-  isRemoving,
-  isTaggingLoading,
+  isBusy,
 }: ContextMenuProps) {
   const [showTagsSubMenu, setShowTagsSubMenu] = useState(false);
   const [activeModal, setActiveModal] = useState<
@@ -138,7 +136,7 @@ export default function ContextMenu({
         <div className="fixed inset-0 z-10001 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <TagSelector
             selectedCount={selectedIds.size}
-            isTagging={isTaggingLoading}
+            isBusy={isBusy}
             onCancel={() => setActiveModal("none")}
             onAddTag={async (name, color) => {
               await handleAddTag(name, color);
@@ -153,7 +151,7 @@ export default function ContextMenu({
           <RemoveTagsModal
             selectedIds={selectedIds}
             availableTags={tagsInSelection}
-            isRemoving={isRemoving}
+            isBusy={isBusy}
             onClose={() => setActiveModal("none")}
             onRemove={async (ids, tagIds) => {
               await handleRemoveTags(ids, tagIds);

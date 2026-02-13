@@ -4,11 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { removeDuplicatesPlaylists } from "@/lib/api/removeDuplicates";
 import { ChevronDown, Check } from "lucide-react";
+import BeanButton from "./BeanButton";
 
 export default function RemoveDuplicatesButton({
   playlistId,
+  size = "lg", // Matching your header buttons
 }: {
   playlistId: string;
+  size?: "sm" | "md" | "lg";
 }) {
   const [isPending, setIsPending] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -17,7 +20,6 @@ export default function RemoveDuplicatesButton({
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node))
@@ -46,30 +48,31 @@ export default function RemoveDuplicatesButton({
 
   return (
     <div
-      className="relative inline-flex h-9 items-stretch"
+      className="relative inline-flex items-stretch"
       ref={menuRef}>
-      {/* MAIN BUTTON */}
-      <button
+      {/* MAIN ACTION: LEFT BEAN */}
+      <BeanButton
         onClick={handleRemove}
         disabled={isPending}
-        className={`flex items-center gap-2 px-4 rounded-l-full border text-xs font-bold tracking-widest uppercase transition-all ${
-          isPending
-            ? "border-gray-600 text-gray-600"
-            : "border-[#b3b3b3] text-[#b3b3b3] hover:text-white hover:bg-white/5"
-        }`}>
+        variant="secondary"
+        side="left"
+        size={size}>
         {isPending ? "PROCESSING..." : "Remove Duplicates"}
-      </button>
+      </BeanButton>
 
-      {/* DROPDOWN TOGGLE */}
-      <button
+      {/* DROPDOWN TOGGLE: RIGHT BEAN */}
+      <BeanButton
         onClick={() => setShowMenu(!showMenu)}
-        className="flex items-center justify-center px-3 rounded-r-full border-y border-r border-l-0 text-[#b3b3b3] border-[#b3b3b3] hover:text-white hover:bg-white/5 transition-all">
-        {/* Removed redundant padding, used flex-center and border-l-0 to avoid double borders */}
+        variant="secondary"
+        side="right"
+        size={size}
+        className="px-2.5" // Slightly tighter padding for the arrow
+      >
         <ChevronDown
           size={16}
-          className={`transition-transform ${showMenu ? "rotate-180" : ""}`}
+          className={`transition-transform duration-200 ${showMenu ? "rotate-180" : ""}`}
         />
-      </button>
+      </BeanButton>
 
       {/* DROPDOWN MENU */}
       {showMenu && (
@@ -86,7 +89,6 @@ export default function RemoveDuplicatesButton({
             <button
               key={item.id}
               onClick={() => {
-                // Logic to move clicked item to front of priority array
                 setPriority([
                   item.id,
                   ...priority.filter((p) => p !== item.id),
@@ -106,6 +108,7 @@ export default function RemoveDuplicatesButton({
           <div className="px-3 py-1.5 text-[9px] text-zinc-500 font-black uppercase tracking-[0.15em]">
             Content Preference
           </div>
+
           <button
             onClick={() => setPrioNonexplicit(!prioNonexplicit)}
             className="w-full flex items-center justify-between px-3 py-2 text-sm text-zinc-300 hover:bg-white/10 transition-colors">

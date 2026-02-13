@@ -51,9 +51,7 @@ export default async function PlaylistPage({ params }: PageProps) {
 
       {/* Second header */}
       <div className="px-8 py-6 flex items-center gap-6">
-        <div className="scale-125">
-          <AddToLikedButton playlistId={playlistId} />
-        </div>
+        <AddToLikedButton playlistId={playlistId} />
         <RemoveDuplicatesButton playlistId={playlistId} />
         <SaveVersionButton playlistId={playlistId} />
       </div>

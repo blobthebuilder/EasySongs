@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { X, Trash2, Check } from "lucide-react"; // Added Check icon
+import { Trash2, Check } from "lucide-react"; // Added Check icon
 import { Tag } from "@/types/api/tags";
+import ModalFrame from "./ModalFrame";
 
 interface RemoveTagsModalProps {
   selectedIds: Set<string>;
   availableTags: Tag[];
   onClose: () => void;
   onRemove: (trackIds: string[], tags: number[] | "all") => Promise<void>;
-  isRemoving: boolean;
+  isBusy: boolean;
 }
 
 const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
@@ -15,7 +16,7 @@ const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
   availableTags,
   onClose,
   onRemove,
-  isRemoving,
+  isBusy,
 }) => {
   const [tagsToRemove, setTagsToRemove] = useState<Set<number>>(new Set());
 
@@ -37,29 +38,14 @@ const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-[#282828] border border-white/10 rounded-xl animate-in fade-in zoom-in-95 shadow-2xl w-72 text-white">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/5 pb-2">
-        <div className="flex flex-col">
-          <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
-            Remove Tags
-          </span>
-          <span className="text-[11px] text-zinc-400">
-            {selectedIds.size} {selectedIds.size === 1 ? "song" : "songs"}{" "}
-            selected
-          </span>
-        </div>
-        <button
-          onClick={onClose}
-          className="text-zinc-500 hover:text-white transition-colors">
-          <X size={16} />
-        </button>
-      </div>
-
+    <ModalFrame
+      title="Remove Tags"
+      subtitle={`${selectedIds.size} ${selectedIds.size === 1 ? "song" : "songs"} selected`}
+      onClose={onClose}>
       <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
         {/* Bulk Action: Quick Clear */}
         <button
-          disabled={isRemoving}
+          disabled={isBusy}
           onClick={() => onRemove(Array.from(selectedIds), "all")}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-red-500/10 text-red-400 transition-colors text-left group">
           <div className="p-1.5 bg-red-500/20 rounded-md group-hover:bg-red-500/30">
@@ -67,8 +53,6 @@ const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
           </div>
           <span className="text-xs font-bold">Clear All Tags</span>
         </button>
-
-        <div className="h-px bg-white/5 my-1" />
 
         <span className="px-3 py-1 text-[10px] text-zinc-500 uppercase font-bold">
           Select Tags to Remove
@@ -80,7 +64,7 @@ const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
             return (
               <button
                 key={tag.id}
-                disabled={isRemoving}
+                disabled={isBusy}
                 onClick={() => toggleTagSelection(tag.id)}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-left group border ${
                   isSelected
@@ -121,20 +105,18 @@ const RemoveTagsModal: React.FC<RemoveTagsModalProps> = ({
 
       {/* THE BATCH ACTION BUTTON */}
       <button
-        disabled={isRemoving || tagsToRemove.size === 0}
+        disabled={isBusy || tagsToRemove.size === 0}
         onClick={handleBatchRemove}
         className="mt-2 w-full bg-red-600 hover:bg-red-500 disabled:opacity-30 disabled:cursor-not-allowed text-white text-xs font-bold py-2.5 rounded-lg transition-all active:scale-95 shadow-lg">
-        {isRemoving
-          ? "Removing..."
-          : `Remove ${tagsToRemove.size} Selected Tags`}
+        {isBusy ? "Removing..." : `Remove ${tagsToRemove.size} Selected Tags`}
       </button>
 
-      {isRemoving && (
+      {isBusy && (
         <div className="text-[10px] text-center text-[#1DB954] animate-pulse font-bold">
           Updating tracks...
         </div>
       )}
-    </div>
+    </ModalFrame>
   );
 };
 

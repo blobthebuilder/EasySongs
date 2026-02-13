@@ -16,6 +16,8 @@ import { removeTagsFromTracks } from "@/lib/api/removeTagsFromTracks";
 import RemoveTagsModal from "./RemoveTagsModal";
 import { Tag } from "@/types/api/tags";
 import { useMemo } from "react";
+import ModalShell from "./ModalShell";
+import BeanButton from "./BeanButton";
 import { useRef } from "react";
 
 export default function TrackTable({
@@ -44,16 +46,12 @@ export default function TrackTable({
 
   // tag variables
   const [isTaggingMenuOpen, setIsTaggingMenuOpen] = useState(false);
-  const [isTaggingLoading, setIsTaggingLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<
-    "none" | "addTag" | "removeTag" | "removeSongs"
+    "none" | "addTag" | "removeTag" | "copyToPlaylist"
   >("none");
-  const [isRemoving, setIsRemoving] = useState(false);
-  const taggingMenuRef = useRef<HTMLDivElement>(null);
 
-  // copy to another playlist variables
-  const [showPlaylistModal, setShowPlaylistModal] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
+  // processing variable
+  const [isBusy, setIsBusy] = useState(false);
 
   // right click menu
   const [menuConfig, setMenuConfig] = useState<{ x: number; y: number } | null>(
@@ -81,20 +79,30 @@ export default function TrackTable({
     setMenuConfig({ x: posX, y: posY });
   };
 
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node))
+        setIsTaggingMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const handleCopyTracks = async (targetId: string) => {
     const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
 
-    setIsCopying(true); // Start the spinner
+    setIsBusy(true);
     try {
       await addTracksToPlaylist(targetId, cleanIds);
-      setShowPlaylistModal(false);
+      setActiveModal("none");
       setSelectedIds(new Set());
       alert("Songs copied successfully!");
     } catch (err) {
       console.log(err);
       alert("Failed to copy songs.");
     } finally {
-      setIsCopying(false); // Stop the spinner
+      setIsBusy(false);
     }
   };
 
@@ -163,7 +171,7 @@ export default function TrackTable({
 
     const targetId = playlistId;
 
-    setIsCopying(true);
+    setIsBusy(true);
     try {
       await removeTracksFromPlaylist(targetId, cleanIds);
       setSelectedIds(new Set());
@@ -174,14 +182,14 @@ export default function TrackTable({
       console.error("Delete failed:", err);
       alert("Failed to remove songs. Please try again.");
     } finally {
-      setIsCopying(false);
+      setIsBusy(false);
     }
   };
 
   const handleAddTag = async (tagName: string, color: string) => {
     if (!tagName.trim() || selectedIds.size === 0) return;
 
-    setIsTaggingLoading(true);
+    setIsBusy(true);
     try {
       // Clean IDs (strip the -index suffix)
       const cleanIds = Array.from(selectedIds).map((id) => id.split("-")[0]);
@@ -201,7 +209,7 @@ export default function TrackTable({
       console.error("Tagging failed:", error.message);
       alert(`Error: ${error.message}`);
     } finally {
-      setIsTaggingLoading(false);
+      setIsBusy(false);
     }
   };
 
@@ -210,10 +218,8 @@ export default function TrackTable({
     tagIds: "all" | number[],
   ) => {
     try {
-      // Determine what tag IDs to send to the backend
-      // If 'all', we send an empty array
       const tagIdsToRemove = tagIds === "all" ? [] : tagIds;
-      setIsRemoving(true);
+      setIsBusy(true);
       await removeTagsFromTracks(playlistId, trackIds, tagIdsToRemove);
 
       setMenuConfig(null);
@@ -222,14 +228,14 @@ export default function TrackTable({
     } catch (error) {
       console.error("Failed to remove tags:", error);
     } finally {
-      setIsRemoving(false);
+      setIsBusy(false);
       setActiveModal("none");
     }
   };
 
-  const openTool = (tool: "addTag" | "removeTag" | "removeSongs") => {
+  const openTool = (tool: "addTag" | "removeTag") => {
     setActiveModal(tool);
-    setIsTaggingMenuOpen(false); // Close the dropdown menu
+    setIsTaggingMenuOpen(false);
   };
 
   const tagsInSelection = useMemo(() => {
@@ -253,23 +259,7 @@ export default function TrackTable({
     return Array.from(uniqueTags.values());
   }, [selectedIds, tags]);
 
-  // 1. Handle clicking outside the Tagging Menu
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isTaggingMenuOpen &&
-        taggingMenuRef.current &&
-        !taggingMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsTaggingMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isTaggingMenuOpen]); // Dependency ensures it checks the current state
-
-  // 2. Handle global mouse up to stop dragging
+  // Handle global mouse up to stop dragging
   useEffect(() => {
     const stopDragging = () => setIsDragging(false);
 
@@ -281,6 +271,7 @@ export default function TrackTable({
     <div
       className="flex flex-col gap-4"
       onContextMenu={(e) => handleContextMenu(e)}>
+      {/*context menu and modals*/}
       {menuConfig && (
         <ContextMenu
           x={menuConfig.x}
@@ -292,99 +283,97 @@ export default function TrackTable({
           tags={tags}
           handleRemoveTags={handleRemoveTags}
           handleAddTag={handleAddTag}
-          isRemoving={isRemoving}
-          isTaggingLoading={isTaggingLoading}
+          isBusy={isBusy}
         />
       )}
-      {/* 1. SELECTION CONTROLS */}
-      <div className="flex items-center gap-4 py-2 min-h-10">
-        {/* Fixed height prevents vertical jump */}
-        <button
-          onClick={toggleSelectAll}
-          className={`text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full transition-all shrink-0 border flex items-center justify-center w-31.25
-    ${
-      allSelected
-        ? "bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700"
-        : "bg-[#1DB954] text-black border-[#1DB954] hover:bg-[#1ed760] hover:scale-105"
-    }`}>
-          {allSelected ? "Deselect All" : "Select All"}
-        </button>
-        {/* Wrap the dynamic content in a container that maintains height and handles transitions */}
-        <div
-          className={`flex items-center gap-4 transition-opacity duration-200`}>
-          <div className="h-4 w-px bg-white/10" />
-
-          <span className="text-sm font-bold text-[#1db954] whitespace-nowrap">
-            {selectedIds.size} Selected
-          </span>
-
-          {/* TAGGING UI */}
-          <div
-            className="relative"
-            ref={taggingMenuRef}>
-            <button
-              disabled={selectedIds.size === 0}
-              onClick={() => setIsTaggingMenuOpen(!isTaggingMenuOpen)}
-              className="text-[10px] font-bold tracking-widest text-white bg-[#1DB954]/20 border border-[#1DB954]/40 hover:bg-[#1DB954]/30 uppercase px-4 py-1.5 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800/50">
-              Edit Tags
-            </button>
-
-            {isTaggingMenuOpen && (
-              <div className="absolute left-0 mt-2 w-48 bg-[#282828] border border-white/10 rounded-xl shadow-2xl p-1 z-50">
-                <button
-                  onClick={() => openTool("addTag")}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-white/10 rounded-lg transition">
-                  Add New Tag <span className="text-zinc-500">+</span>
-                </button>
-                <button
-                  onClick={() => openTool("removeTag")}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-white/10 rounded-lg transition">
-                  Remove Tags <span className="text-zinc-500">−</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/*Tagging modals*/}
+      {activeModal !== "none" && (
+        <ModalShell onClose={() => setActiveModal("none")}>
           {activeModal === "addTag" && (
-            <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-              <TagSelector
-                selectedCount={selectedIds.size}
-                isTagging={isTaggingLoading}
-                onCancel={() => setActiveModal("none")}
-                onAddTag={(name, color) => {
-                  handleAddTag(name, color);
-                  setActiveModal("none");
-                }}
-              />
-            </div>
+            <TagSelector
+              selectedCount={selectedIds.size}
+              isBusy={isBusy}
+              onCancel={() => setActiveModal("none")}
+              onAddTag={(name, color) => {
+                handleAddTag(name, color);
+                setActiveModal("none");
+              }}
+            />
           )}
-
           {activeModal === "removeTag" && (
-            <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-              <RemoveTagsModal
-                selectedIds={selectedIds}
-                onClose={() => setActiveModal("none")}
-                onRemove={handleRemoveTags}
-                isRemoving={isRemoving}
-                availableTags={tagsInSelection}
-              />
+            <RemoveTagsModal
+              selectedIds={selectedIds}
+              onClose={() => setActiveModal("none")}
+              onRemove={handleRemoveTags}
+              isBusy={isBusy}
+              availableTags={tagsInSelection}
+            />
+          )}
+          {activeModal === "copyToPlaylist" && (
+            <AddToPlaylistModal
+              playlists={userPlaylists}
+              onClose={() => !isBusy && setActiveModal("none")} // Prevent closing while busy
+              onSelect={handleCopyTracks} // This now triggers the API call
+            />
+          )}
+        </ModalShell>
+      )}
+
+      {/* Buttons */}
+      <div className="flex items-center gap-4">
+        <BeanButton
+          onClick={toggleSelectAll}
+          variant={allSelected ? "danger" : "primary"}
+          className="w-32">
+          {allSelected ? "Deselect All" : "Select All"}
+        </BeanButton>
+
+        <div className="h-4 w-px bg-white/10" />
+
+        <span className="text-sm font-bold text-[#1db954] whitespace-nowrap w-24 flex items-center justify-center">
+          {selectedIds.size} Selected
+        </span>
+
+        {/* TAGGING UI */}
+        <div
+          className="relative"
+          ref={menuRef}>
+          <BeanButton
+            disabled={selectedIds.size === 0 || isBusy}
+            onClick={() => setIsTaggingMenuOpen(!isTaggingMenuOpen)}
+            variant="secondary"
+            className="bg-[#1DB954]/20 border-[#1DB954]/40 text-[#1DB954] hover:bg-[#1DB954]/30">
+            Edit Tags
+          </BeanButton>
+          {isTaggingMenuOpen && (
+            <div className="absolute left-0 mt-2 w-48 bg-[#282828] border border-white/10 rounded-xl shadow-2xl p-1 z-50">
+              <button
+                onClick={() => openTool("addTag")}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-white/10 rounded-lg transition">
+                Add New Tag <span className="text-zinc-500">+</span>
+              </button>
+              <button
+                onClick={() => openTool("removeTag")}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs text-white hover:bg-white/10 rounded-lg transition">
+                Remove Tags <span className="text-zinc-500">−</span>
+              </button>
             </div>
           )}
-          <button
-            onClick={() => setShowPlaylistModal(true)}
-            disabled={isCopying || selectedIds.size === 0} // Disabled if busy OR nothing selected
-            className="text-[10px] font-bold tracking-widest text-white bg-white/10 hover:bg-white/20 uppercase px-4 py-1.5 rounded-full transition whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed">
-            {isCopying ? "Copying..." : "Add to Playlist"}
-          </button>
-
-          <button
-            onClick={handleRemoveTracks}
-            disabled={isCopying || selectedIds.size === 0} // Same logic here
-            className="text-[10px] font-bold tracking-widest text-zinc-500 hover:text-red-500 uppercase px-4 py-1.5 border border-zinc-800 hover:border-red-500/50 rounded-full transition disabled:opacity-30 disabled:cursor-not-allowed disabled:border-zinc-800">
-            {isCopying ? "Removing..." : "Remove from Playlist"}
-          </button>
         </div>
+
+        {/* ADD BEAN */}
+        <BeanButton
+          onClick={() => setActiveModal("copyToPlaylist")}
+          disabled={isBusy || selectedIds.size === 0}
+          variant="secondary">
+          {isBusy ? "Copying..." : "Add to Playlist"}
+        </BeanButton>
+        {/* REMOVE BEAN */}
+        <BeanButton
+          onClick={handleRemoveTracks}
+          disabled={isBusy || selectedIds.size === 0}
+          variant="danger">
+          {isBusy ? "Removing..." : "Remove from Playlist"}
+        </BeanButton>
       </div>
 
       {/* 2. TABLE */}
@@ -413,14 +402,6 @@ export default function TrackTable({
           })}
         </tbody>
       </table>
-
-      {showPlaylistModal && (
-        <AddToPlaylistModal
-          playlists={userPlaylists}
-          onClose={() => !isCopying && setShowPlaylistModal(false)} // Prevent closing while busy
-          onSelect={handleCopyTracks} // This now triggers the API call
-        />
-      )}
     </div>
   );
 }

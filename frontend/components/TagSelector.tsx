@@ -1,9 +1,10 @@
 import React, { useState, useRef, FormEvent } from "react";
+import ModalFrame from "./ModalFrame";
 
 interface TagSelectorProps {
   onAddTag: (name: string, color: string) => void;
   onCancel: () => void;
-  isTagging: boolean;
+  isBusy: boolean;
   selectedCount: number;
 }
 
@@ -19,7 +20,7 @@ const PRESET_COLORS: string[] = [
 const TagSelector: React.FC<TagSelectorProps> = ({
   onAddTag,
   onCancel,
-  isTagging,
+  isBusy,
   selectedCount,
 }) => {
   const [tagName, setTagName] = useState<string>("");
@@ -36,22 +37,14 @@ const TagSelector: React.FC<TagSelectorProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-4 bg-[#282828] border border-white/10 rounded-xl animate-in fade-in zoom-in-95 shadow-2xl w-64 text-white">
+    <ModalFrame
+      title="Add New Tag"
+      subtitle={`Tagging ${selectedCount} ${selectedCount === 1 ? "Song" : "Songs"}`}
+      onClose={onCancel} // The frame's close button now triggers the parent's onClose
+    >
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">
-            Tagging {selectedCount} {selectedCount === 1 ? "Song" : "Songs"}
-          </span>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-[10px] text-zinc-400 hover:text-white uppercase transition-colors">
-            Close
-          </button>
-        </div>
-
         <div className="flex items-center gap-2">
           <input
             autoFocus
@@ -64,9 +57,9 @@ const TagSelector: React.FC<TagSelectorProps> = ({
           />
           <button
             type="submit"
-            disabled={isTagging || !tagName}
+            disabled={isBusy || !tagName}
             className="text-xs font-bold text-[#1DB954] hover:brightness-110 disabled:opacity-30 disabled:cursor-not-allowed">
-            {isTagging ? "..." : "ADD"}
+            {isBusy ? "..." : "ADD"}
           </button>
         </div>
       </form>
@@ -109,7 +102,7 @@ const TagSelector: React.FC<TagSelectorProps> = ({
           />
         </div>
       </div>
-    </div>
+    </ModalFrame>
   );
 };
 
